@@ -111,11 +111,18 @@ public class Client {
 
             // If the code is an ACK then we need to send the next block of data
         	if (Arrays.equals(opCode, ACK_CODE)) {
-                // Get the block number from the data
 
                 // Increment block number to next block
         		int blockNumber = (byteBlockNumber[1] & 0xFF) << 8 | (byteBlockNumber[0] & 0xFF);
         		blockNumber++;
+        	
+        		// Process the received datagram.
+        		System.out.println("Client: Packet received:");
+        		System.out.println("From host: " + receivePacket.getAddress());
+        		System.out.println("Host port: " + receivePacket.getPort());
+        		System.out.println("Length: " + receivePacket.getLength());
+        		System.out.println("Containing: " + new String(receivePacket.getData()));
+        		System.out.println("Byte form: " + Arrays.toString(receivePacket.getData()) + "\n\n");
 
                 // Get the data from the file
         		byte[] b = parseFile(blockNumber);
