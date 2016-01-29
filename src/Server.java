@@ -36,10 +36,13 @@ public class Server {
 	   if(msg[0] != 0){
 		   return false;
 	   }
-	   else if(msg[1] != 1 && msg[1] != 2){
-		   return false;
-	   }
-	   
+
+	   if(msg[1] == 3 || msg[1] == 4){
+		   return true;
+	   } else if (msg[1] != 1 && msg[1] != 2) {
+           return false;
+       }
+
 	   while(m != n){
 		   if(msg[m] == 0){
 			   if(msg[m-1] == 2 || msg[m-1] == 1){
@@ -50,7 +53,7 @@ public class Server {
 					   return false;
 				   }
 			   }
-			   else if(q != 0){
+			   else {
 				   if(m+1 != n){
 					   return false;
 				   }

@@ -60,7 +60,7 @@ public class ErrorGen {
    public void receiveAndEcho()
    {
       // Initialize the variables
-      byte data[] = new byte[100];
+      byte data[] = new byte[516];
       byte mydata[];
       int clientport;
       receivePacket = new DatagramPacket(data, data.length);

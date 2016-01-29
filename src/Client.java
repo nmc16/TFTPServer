@@ -16,10 +16,11 @@ public class Client {
     private DatagramSocket sendReceiveSocket;
     private static final byte READ_CODE[] = {0, 1};
     private static final byte WRITE_CODE[] = {0, 2};
+    private static final byte DATA_CODE[] = {0, 3};
     private static final byte ACK_CODE[] = {0, 4};
-    private static final int HOST_PORT = 69;
+    private static final int HOST_PORT = 68;
     private InetAddress address;
-    private String location;
+    private String location, mode;
 
 
     public Client() {
@@ -39,13 +40,15 @@ public class Client {
         }
     }
 
-	public String parseFile(int blockNumber, String mode) {
+	public byte[] parseFile(int blockNumber) {
+        byte[] data = new byte[512];
 		if (location != null) {
 			try {
-				RandomAccessFile file = new RandomAccessFile(location, mode);
+				RandomAccessFile file = new RandomAccessFile(location, "rw");
 				file.seek(blockNumber * 512);
-				
-				
+
+				file.read(data, 0, data.length);
+                return data;
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
 			} catch (IOException e) {
@@ -98,17 +101,57 @@ public class Client {
         	System.out.println("From host: " + receivePacket.getAddress());
         	System.out.println("Host port: " + receivePacket.getPort());
         	System.out.println("Length: " + receivePacket.getLength());
-        	System.out.println("Containing: ");
+        	System.out.println("Containing: " + new String(receivePacket.getData()));
+            System.out.println("In byte form: " + Arrays.toString(receivePacket.getData()) + "\n\n");
         	
         	// Check the OP Code
         	byte[] opCode = Arrays.copyOfRange(receivePacket.getData(), 0, 2);
+            byte[] byteBlockNumber = Arrays.copyOfRange(receivePacket.getData(), 3, 5);
+            DatagramPacket response = null;
+
+            // If the code is an ACK then we need to send the next block of data
         	if (Arrays.equals(opCode, ACK_CODE)) {
-        		// We need to send the next block of data to server if there is more
-        		byte[] byteBlockNumber = Arrays.copyOfRange(receivePacket.getData(), 3, 5);
+                // Get the block number from the data
+
+                // Increment block number to next block
         		int blockNumber = (byteBlockNumber[1] & 0xFF) << 8 | (byteBlockNumber[0] & 0xFF);
         		blockNumber++;
-        		String s = parseFile(blockNumber);
-        	}
+
+                // Get the data from the file
+        		byte[] b = parseFile(blockNumber);
+
+                // If there is no more data left in the file break the loop
+                if (b == null) {
+                    break;
+                }
+
+                // Otherwise send the new packet to the server
+                response = createPacket(DATA_CODE, b);
+
+
+        	} else if (Arrays.equals(opCode, DATA_CODE)) {
+                // Get the data
+                byte[] transferred = Arrays.copyOfRange(receivePacket.getData(), 4, 517);
+                String s = new String(transferred);
+                System.out.println("Data: " + s);
+
+                // Check if there is more data to be read or not
+                if (transferred[transferred.length - 1] == 0) {
+                    // No more data to be read
+                    break;
+                }
+
+                // Otherwise send an acknowledge to the server
+                response = createPacket(ACK_CODE, byteBlockNumber);
+
+            }
+
+            try {
+                sendReceiveSocket.send(response);
+            } catch (IOException e) {
+                e.printStackTrace();
+                System.exit(1);
+            }
         }
 
    }
@@ -143,7 +186,24 @@ public class Client {
         buffer.write(0);
 
         this.location = location;
+        this.mode = mode;
         
+        return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, HOST_PORT);
+    }
+
+    public DatagramPacket createPacket(byte[] opCode, byte[] data) {
+        // Check that the op code is valid before creating
+        if (opCode.length != 2) {
+            throw new IllegalArgumentException("Op code must be length 2! Found length " + opCode.length + ".");
+        }
+
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+        buffer.write(opCode[0]);
+        buffer.write(opCode[1]);
+
+        buffer.write(data, 0, data.length);
+
         return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, HOST_PORT);
     }
 
@@ -166,7 +226,7 @@ public class Client {
                 System.out.println("Instruction invalid length!");
                 return;
             }
-            DatagramPacket packet = createPacket(WRITE_CODE, args[1], args[2]);
+            DatagramPacket packet = createPacket(WRITE_CODE, args[1], args[3], args[2]);
             sendAndReceive(packet);
         } else {
             System.out.println("Invalid command entered!");
