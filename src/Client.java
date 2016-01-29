@@ -30,7 +30,7 @@ public class Client {
             // send and receive UDP Datagram packets.
             Random r = new Random();
             address = InetAddress.getLocalHost();
-            sendReceiveSocket = new DatagramSocket(r.nextInt(65553), address);
+            sendReceiveSocket = new DatagramSocket(r.nextInt(65553));
         } catch (SocketException se) {   // Can't create the socket.
             se.printStackTrace();
             System.exit(1);
@@ -106,7 +106,7 @@ public class Client {
         	
         	// Check the OP Code
         	byte[] opCode = Arrays.copyOfRange(receivePacket.getData(), 0, 2);
-            byte[] byteBlockNumber = Arrays.copyOfRange(receivePacket.getData(), 3, 5);
+            byte[] byteBlockNumber = Arrays.copyOfRange(receivePacket.getData(), 2, 4);
             DatagramPacket response = null;
 
             // If the code is an ACK then we need to send the next block of data
@@ -133,12 +133,12 @@ public class Client {
                 }
 
                 // Otherwise send the new packet to the server
-                response = createPacket(DATA_CODE, b);
+                response = createPacket(DATA_CODE, b, receivePacket.getPort());
 
 
         	} else if (Arrays.equals(opCode, DATA_CODE)) {
                 // Get the data
-                byte[] transferred = Arrays.copyOfRange(receivePacket.getData(), 4, 517);
+                byte[] transferred = Arrays.copyOfRange(receivePacket.getData(), 4, 516);
                 String s = new String(transferred);
                 System.out.println("Data: " + s);
 
@@ -149,10 +149,16 @@ public class Client {
                 }
 
                 // Otherwise send an acknowledge to the server
-                response = createPacket(ACK_CODE, byteBlockNumber);
-
+                response = createPacket(ACK_CODE, byteBlockNumber, receivePacket.getPort());
+                System.out.println("Client: Sending packet:");
+                System.out.println("To host: " + response.getAddress());
+                System.out.println("Destination host port: " + response.getPort());
+                System.out.println("Length: " + response.getLength());
+                System.out.print("Containing: " + new String(response.getData()));
+                System.out.println("Byte form: " + Arrays.toString(response.getData()) + "\n\n");
             }
 
+        	System.out.println("SENDING STUFF");
             try {
                 sendReceiveSocket.send(response);
             } catch (IOException e) {
@@ -198,7 +204,7 @@ public class Client {
         return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, HOST_PORT);
     }
 
-    public DatagramPacket createPacket(byte[] opCode, byte[] data) {
+    public DatagramPacket createPacket(byte[] opCode, byte[] data, int port) {
         // Check that the op code is valid before creating
         if (opCode.length != 2) {
             throw new IllegalArgumentException("Op code must be length 2! Found length " + opCode.length + ".");
@@ -211,7 +217,7 @@ public class Client {
 
         buffer.write(data, 0, data.length);
 
-        return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, HOST_PORT);
+        return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, port);
     }
 
     private void runCommand(String args[]) {

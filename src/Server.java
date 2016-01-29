@@ -37,9 +37,7 @@ public class Server {
 		   return false;
 	   }
 
-	   if(msg[1] == 3 || msg[1] == 4){
-		   return true;
-	   } else if (msg[1] != 1 && msg[1] != 2) {
+	   if (msg[1] != 1 && msg[1] != 2) {
            return false;
        }
 
