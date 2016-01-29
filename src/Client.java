@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.*;
+import java.util.Scanner;
 
 public class Client {
 	
@@ -7,11 +8,11 @@ public class Client {
 	//Set up the packets and Sockets
    DatagramPacket sendPacket, receivePacket;
    DatagramSocket sendReceiveSocket;
-   
-   //Set up a chooser of whether or not it's read or write
-   public static int readorwrite = 0;
-   public static int numberotimes = 1;
-   
+    private static final byte READ_CODE[] = {0, 1};
+    private static final byte WRITE_CODE[] = {0, 2};
+    private static final byte ACK_CODE[] = {0, 4};
+    private InetAddress address;
+    private int hostPort;
    
    
    
@@ -40,40 +41,6 @@ public class Client {
 		   n++;
 	   }
 	   return newmsg;
-   }
-   
-   
-   //A method to change a string of bytes into the appropriate format for the assignment
-   public byte[] changetoREAD(byte msg[]){
-	   byte[] readmsg = new byte[msg.length + 12];
-	   String s2 = "netascii";
-	   byte[] msg2 = s2.getBytes();
-	   
-	   //Change the first 2 bytes
-	   readmsg[0] = 0;
-	   readmsg[1] = 1;
-	   int n = 0;
-	   int m = 0;
-	   int end = msg.length;
-	   
-	   //At on the string message
-	   while(n != end){
-		   readmsg[n+2] = msg[n];
-		   n = n + 1;
-	   }
-	   //Add on the second zero byte
-	   readmsg[n+2] = 0;
-	   n = n + 1;
-	   end = n + 8;
-	   //Add on the mode (ie netascii)
-	   while(n != end){
-		   readmsg[n+2] = msg2[m];
-		   n = n + 1;
-		   m = m + 1;
-	   }
-	   //Add the terminating zero
-	   readmsg[n+2] = 0;
-	   return readmsg;
    }
 
 
@@ -177,6 +144,65 @@ public class Client {
       // We're finished, so close the socket.
       sendReceiveSocket.close();
    }
+
+    public void printMenu() {
+        System.out.println("> Options:");
+        System.out.println(">    read [filename] [mode] - Reads the file from the server under filename");
+        System.out.println(">    write [filename] [file location] [mode] - Writes file at location to");
+        System.out.println("                                                filename on server.");
+        System.out.println(">    help - Prints options screen.");
+    }
+
+    public DatagramPacket createPacket(byte[] opCode, String fileName, String mode) {
+        return createPacket(opCode, fileName, mode, null);
+    }
+
+    public DatagramPacket createPacket(byte[] opCode, String fileName, String mode, String location) {
+        // Check that the op code is valid before creating
+        if (opCode.length != 2) {
+            throw new IllegalArgumentException("Op code must be length 2! Found length " + opCode.length + ".");
+        }
+
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+        buffer.write(opCode[0]);
+        buffer.write(opCode[1]);
+
+        buffer.write(fileName.getBytes(), 0, fileName.length());
+        buffer.write(0);
+        buffer.write(mode.getBytes(), 0, mode.length());
+        buffer.write(0);
+
+        return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, hostPort);
+    }
+
+    public void run() {
+        Scanner reader = new Scanner(System.in);
+        while(true) {
+            System.out.println("> Starting client...");
+            printMenu();
+
+            // Read the input from the user
+            System.out.println("> ");
+            String input = reader.next();
+
+            // Parse the input and check for keywords
+            String args[] = input.split(" ");
+
+            if (args.length < 3) {
+                System.out.println("> Instruction invalid length!");
+            } else {
+                if (args[1].toLowerCase().equals("read")) {
+                    DatagramPacket packet = createPacket(READ_CODE, args[1], args[2]);
+                } else if (args[1].toLowerCase().equals("write")) {
+                    if ()
+                }
+            }
+
+
+        }
+
+    }
 
    public static void main(String args[])
    {
