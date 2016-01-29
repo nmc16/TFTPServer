@@ -1,5 +1,7 @@
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -17,6 +19,7 @@ public class Client {
     private static final byte ACK_CODE[] = {0, 4};
     private static final int HOST_PORT = 69;
     private InetAddress address;
+    private String location;
 
 
     public Client() {
@@ -36,6 +39,24 @@ public class Client {
         }
     }
 
+	public String parseFile(int blockNumber, String mode) {
+		if (location != null) {
+			try {
+				RandomAccessFile file = new RandomAccessFile(location, mode);
+				file.seek(blockNumber * 512);
+				
+				
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			
+		}
+		
+		return null;
+    }
+    
     public void sendAndReceive(DatagramPacket sendPacket) {
 
         //Print out the info on the packet
@@ -60,25 +81,35 @@ public class Client {
         // Construct a DatagramPacket for receiving packets up
         // to 516 bytes long (the length of the byte array).
 
-        byte data[] = new byte[516];
-        receivePacket = new DatagramPacket(data, data.length);
+        while (true) {
+        	byte data[] = new byte[516];
+        	receivePacket = new DatagramPacket(data, data.length);
 
-        try {
-            // Block until a datagram is received via sendReceiveSocket.
-            sendReceiveSocket.receive(receivePacket);
-        } catch(IOException e) {
-            e.printStackTrace();
-            System.exit(1);
+        	try {
+        		// Block until a datagram is received via sendReceiveSocket.
+        		sendReceiveSocket.receive(receivePacket);
+        	} catch(IOException e) {
+        		e.printStackTrace();
+        		System.exit(1);
+        	}
+
+        	// Process the received datagram.
+        	System.out.println("Client: Packet received:");
+        	System.out.println("From host: " + receivePacket.getAddress());
+        	System.out.println("Host port: " + receivePacket.getPort());
+        	System.out.println("Length: " + receivePacket.getLength());
+        	System.out.println("Containing: ");
+        	
+        	// Check the OP Code
+        	byte[] opCode = Arrays.copyOfRange(receivePacket.getData(), 0, 2);
+        	if (Arrays.equals(opCode, ACK_CODE)) {
+        		// We need to send the next block of data to server if there is more
+        		byte[] byteBlockNumber = Arrays.copyOfRange(receivePacket.getData(), 3, 5);
+        		int blockNumber = (byteBlockNumber[1] & 0xFF) << 8 | (byteBlockNumber[0] & 0xFF);
+        		blockNumber++;
+        		String s = parseFile(blockNumber);
+        	}
         }
-
-        // Process the received datagram.
-        System.out.println("Client: Packet received:");
-        System.out.println("From host: " + receivePacket.getAddress());
-        System.out.println("Host port: " + receivePacket.getPort());
-        System.out.println("Length: " + receivePacket.getLength());
-        System.out.println("Containing: ");
-
-        // Check the op code of the received packet
 
    }
 
@@ -111,6 +142,8 @@ public class Client {
         buffer.write(mode.getBytes(), 0, mode.length());
         buffer.write(0);
 
+        this.location = location;
+        
         return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, HOST_PORT);
     }
 
@@ -167,6 +200,7 @@ public class Client {
         }
         // We're finished, so close the socket.
         sendReceiveSocket.close();
+        reader.close();
     }
 
     public static void main(String args[]) {
