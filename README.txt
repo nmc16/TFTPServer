@@ -19,3 +19,9 @@ read [filename] [mode] - Reads the file from the server under filename
 write [filename] [file location] [mode] - Writes file at location to filename on server.
 help - Prints options screen.
 quit - Quits the client program
+
+Testing:
+The testing was done was by writing a file to the server and reading a file from the server by using the 512.txt.
+1) write written.txt C:\512.txt octet
+2) read written.txt
+3) quit

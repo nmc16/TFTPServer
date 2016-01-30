@@ -11,6 +11,13 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
 
+/**
+ * Client program that connects through the error detector to connect to the server
+ * and perform file operations.
+ * 
+ * Client has a text UI that gives options for file operations on the server.
+ * 
+ */
 public class Client {
     private DatagramPacket receivePacket;
     private DatagramSocket sendReceiveSocket;
@@ -40,26 +47,46 @@ public class Client {
         }
     }
 
+    /**
+     * Parses the file by blocks using the block number given where each block holds 512 
+     * bytes. Reads one block at a time.
+     * 
+     * @param blockNumber Block number to read from where 1 represents the first block in the file (byte 0)
+     * @return returns the byte array (size 512) that holds the block parsed from the file
+     */
 	public byte[] parseFile(int blockNumber) {
         byte[] data = new byte[512];
+        
+        // Only try the read if the location has been saved
 		if (location != null) {
 			try {
+				// Create an access file in read write mode
 				RandomAccessFile file = new RandomAccessFile(location, "rw");
+				
+				// Skip to the beginning of the block we want to read from
 				file.seek((blockNumber - 1) * 512);
-
+				
+				// Read the full block and close the reader
 				file.read(data, 0, data.length);
+				file.close();
                 return data;
+                
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-			
 		}
 		
 		return null;
     }
     
+	/**
+	 * Method that sends the initial request to the server and keeps the server and client 
+	 * communicating until all of the data has been passed for the read/write operation.
+	 * 
+	 * @param sendPacket Packet created for the initial request.
+	 */
     public void sendAndReceive(DatagramPacket sendPacket) {
 
         //Print out the info on the packet
@@ -157,6 +184,7 @@ public class Client {
             System.out.println("Containing: " + new String(response.getData()));
             System.out.println("Byte form: " + Arrays.toString(response.getData()) + "\n\n");
             
+            // Send the response to the server
             try {
                 sendReceiveSocket.send(response);
             } catch (IOException e) {
@@ -164,9 +192,11 @@ public class Client {
                 System.exit(1);
             }
         }
-
    }
 
+    /**
+     * Prints the UI menu options to stdout
+     */
     public void printMenu() {
         System.out.println(" Options:");
         System.out.println("    read [filename] [mode] - Reads the file from the server under filename");
@@ -176,6 +206,15 @@ public class Client {
         System.out.println("    quit - Quits the client program.");
     }
 
+    /**
+     * Creates a datagram packet that holds the request using the OP code and file name on the
+     * server to perform the IO operations on, as well as the mode to perform them in.
+     * 
+     * @param opCode 2 byte operation code 
+     * @param fileName File name on the server to perform IO on
+     * @param mode mode for IO
+     * @return Datagram packet created for request
+     */
     public DatagramPacket createPacket(byte[] opCode, String fileName, String mode) {
         return createPacket(opCode, fileName, mode, null);
     }
@@ -188,9 +227,11 @@ public class Client {
 
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
+        // Write the op code into the buffer
         buffer.write(opCode[0]);
         buffer.write(opCode[1]);
 
+        // Write the file name and mode seperated by 0s
         buffer.write(fileName.getBytes(), 0, fileName.length());
         buffer.write(0);
         buffer.write(mode.getBytes(), 0, mode.length());
@@ -202,6 +243,14 @@ public class Client {
         return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, HOST_PORT);
     }
 
+    /**
+     * Creates datagram packet using port and data passed.
+     * 
+     * @param opCode 2 byte operation code
+     * @param data byte array of data to send to server
+     * @param port port to send data to
+     * @return Datagram packet for the request
+     */
     public DatagramPacket createPacket(byte[] opCode, byte[] data, int port) {
         // Check that the op code is valid before creating
         if (opCode.length != 2) {
@@ -218,6 +267,11 @@ public class Client {
         return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, port);
     }
 
+    /**
+     * Runs the command given the split string around whitespace.
+     * 
+     * @param args Arguments passed from UI
+     */
     private void runCommand(String args[]) {
 
         if (args[0].toLowerCase().equals("help")) {
@@ -244,6 +298,9 @@ public class Client {
         }
     }
 
+    /**
+     * Runs the UI and runs the commands entered
+     */
     public void run() {
         Scanner reader = new Scanner(System.in);
         System.out.println("Starting client...");
