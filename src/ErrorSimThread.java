@@ -55,7 +55,7 @@ public class ErrorSimThread implements Runnable {
 	
 	      System.out.println("Intermediate: packet sent");
 	      boolean flag = false;
-	      while(!flag){
+	      while(true){
 
 		      //empty the data receiver
 		      data = new byte[516];
@@ -74,7 +74,6 @@ public class ErrorSimThread implements Runnable {
 		      }
 		      
 		      serverPort = receivePacket.getPort();
-		      System.out.println("SERVER PORT: " + serverPort);
 		      
 		      //print out the data on the received packet
 		      System.out.println("Intermediate: Packet received:");
@@ -105,6 +104,10 @@ public class ErrorSimThread implements Runnable {
 		    	  System.exit(1);
 		      }
 		      
+		      if (flag) {
+		    	  break;
+		      }
+		      
 		      //empty the data receiver
 		      data = new byte[516];
 		      
@@ -113,22 +116,19 @@ public class ErrorSimThread implements Runnable {
 		      
 		      //wait until a new packet is received
 		      try {
-		         sendReceiveSocket.receive(receivePacket);
-		         if (checkIfDone(receivePacket.getData())) flag = true;
+		    	  sendReceiveSocket.receive(receivePacket);
+		    	  if (checkIfDone(receivePacket.getData())) flag = true;
 		      } catch(IOException e) {
-		         e.printStackTrace();
-		         System.exit(1);
+		    	  e.printStackTrace();
+		    	  System.exit(1);
 		      }
 		      
-		      //empty the data receiver
-		      data = new byte[516];
-		      
 		      //create a new packet to send
-		      sendPacket = new DatagramPacket(data, receivePacket.getLength(),
+		      sendPacket = new DatagramPacket(receivePacket.getData(), receivePacket.getLength(),
 		              						  receivePacket.getAddress(), serverPort);
 		      
 		      //print out the data to be sent
-		      System.out.println( "Intermediate: Sending packet:");
+		      System.out.println("Intermediate: Sending packet:");
 		      System.out.println("To host: " + sendPacket.getAddress());
 		      System.out.println("Destination host port: " + sendPacket.getPort());
 		      System.out.println("Length: " + sendPacket.getLength());

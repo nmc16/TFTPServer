@@ -74,7 +74,6 @@ public class ServerResponse implements Runnable {
 			}
 			
 			int blockNumber = (block[1] & 0xFF) << 8 | (block[0] & 0xFF);
-    		System.out.println("BLOCK NUMBER: " + blockNumber);
 			reply.write(0);
 			reply.write(DATA);
 			reply.write(block, 0, block.length);
@@ -89,7 +88,7 @@ public class ServerResponse implements Runnable {
 					reply.write(buffer, 0, buffer.length);
 	                f.close();
 	                
-	                if (i != 512) {
+	                if (i < 512) {
 	                	flag = true;
 	                }
 				} catch (FileNotFoundException e) {
@@ -120,8 +119,6 @@ public class ServerResponse implements Runnable {
 		    }
 		    
 		    if (!flag) {
-		    	
-		    	System.out.println("WAITING");
 		    	buffer = new byte[512];
 		    	DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
 		    	try {
@@ -130,63 +127,78 @@ public class ServerResponse implements Runnable {
 		    	} catch (IOException e) {
 		    		e.printStackTrace();
 		    	}
-		    	System.out.println("GOTCHA");
 		    }
-		    
-		}
-		System.out.println("WE OUT");
-        
+		} 
 	}
 	
-	public boolean writeToFile() throws IOException{
-		int len = 0;
-		int curr=2;
-		String contents="";
+	public void writeToFile() {
+		File file = getFile();
+		createFile(file);
 		
-		while(data.getData()[curr] != 0){
-			len++;
-			curr++;
-		}
-		byte file[] = new byte[len];
+		byte[] block = {0, 0};
+		boolean flag = false;
 		
-		System.arraycopy(data.getData(), 2, file, 0, len);
-		
-		  
-		  String fileName = (new String(file));
-		  
-		  File f = new File(fileName);
-		  if(!f.exists()) {
-		      f.createNewFile();
-		  } 
-		  
-		  try (Scanner s = new Scanner(f).useDelimiter("\\Z")) {
-			  contents = s.next();
-		  }
-		  catch(FileNotFoundException e){
-			  e.printStackTrace();
-		  }
-		  
-		  //System.out.println("**********************"+ contents);
-		  
-		  try {
-				//fos = new FileOutputStream(fout);
-				FileWriter fw = new FileWriter(f);
-				try {
-					//System.out.println("Hi "+s);
-					fw.write(contents);
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+		while(true) {
+			ByteArrayOutputStream reply = new ByteArrayOutputStream();
+			reply.write(0);
+			reply.write(ACK);
+			reply.write(block, 0, block.length);
+			
+			//Construct a new packet
+		    DatagramPacket responseData = new DatagramPacket(reply.toByteArray(), reply.toByteArray().length,
+		                                                     data.getAddress(), data.getPort());
+		    //print out the data on the sent packet
+		    System.out.println( "Server: Sending packet:");
+		    System.out.println("To host: " + responseData.getAddress());
+		    System.out.println("Destination host port: " + responseData.getPort());
+		    System.out.println("Length: " + responseData.getLength());
+		    System.out.println("Containing: " + Arrays.toString(reply.toByteArray()) + "\n\n");
+		    
+			//SEND the PACKET
+		    try {
+		        socket.send(responseData);
+		    } catch (IOException e) {
+		        e.printStackTrace();
+		    }
+		    
+		    if (flag) {
+		    	break;
+		    }
+		    
+		    byte[] buffer = new byte[516];
+	    	DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
+	    	try {
+	    		socket.receive(receivePacket);
+	    		data = receivePacket;
+	    	} catch (IOException e) {
+	    		e.printStackTrace();
+	    	}
+	    	
+	    	//print out the data on the sent packet
+		    System.out.println( "Server: Received packet:");
+		    System.out.println("From host: " + receivePacket.getAddress());
+		    System.out.println("Host port: " + receivePacket.getPort());
+		    System.out.println("Length: " + receivePacket.getLength());
+		    System.out.println("Containing: " + Arrays.toString(receivePacket.getData()));
+		    
+	    	block[0] = receivePacket.getData()[2];
+	    	block[1] = receivePacket.getData()[3];
+	    	
+	    	byte[] b = Arrays.copyOfRange(receivePacket.getData(), 3, buffer.length);
+	    	if (b[b.length - 1] == 0) {
+	    		flag = true;
+	    	}
+	    	
+	    	String contents = new String(b);
+	    	
+	    	try {
+				FileWriter fw = new FileWriter(file, true);
+				fw.write(contents);
 				fw.close();
-			} catch (FileNotFoundException e) {
-				// TODO Auto-generated catch block
+			} catch (IOException e) {
 				e.printStackTrace();
-			}
-		  
-		  
-		
-		return true;
+			} 
+		}
 	}
 
 	@Override
@@ -195,7 +207,7 @@ public class ServerResponse implements Runnable {
 	    if (initialPacket.getData()[1] == RRQ) {
 	        readFile();
 	    } else {
-            createFile(getFile());
+            writeToFile();
 	    }
 	    
 	}

@@ -45,7 +45,7 @@ public class Client {
 		if (location != null) {
 			try {
 				RandomAccessFile file = new RandomAccessFile(location, "rw");
-				file.seek(blockNumber * 512);
+				file.seek((blockNumber - 1) * 512);
 
 				file.read(data, 0, data.length);
                 return data;
@@ -67,7 +67,7 @@ public class Client {
         System.out.println("To host: " + sendPacket.getAddress());
         System.out.println("Destination host port: " + sendPacket.getPort());
         System.out.println("Length: " + sendPacket.getLength());
-        System.out.print("Containing: " + new String(sendPacket.getData()));
+        System.out.println("Containing: " + new String(sendPacket.getData()));
         System.out.println("Byte form: " + Arrays.toString(sendPacket.getData()) + "\n\n");
 
         // Send the datagram packet to the intermediate via the send/receive socket.
@@ -113,34 +113,32 @@ public class Client {
         	if (Arrays.equals(opCode, ACK_CODE)) {
 
                 // Increment block number to next block
+        		byteBlockNumber[0]++;
+    			if (byteBlockNumber[0] == 0) {
+    				byteBlockNumber[1]++;
+    			}
+    			
         		int blockNumber = (byteBlockNumber[1] & 0xFF) << 8 | (byteBlockNumber[0] & 0xFF);
-        		blockNumber++;
-        	
-        		// Process the received datagram.
-        		System.out.println("Client: Packet received:");
-        		System.out.println("From host: " + receivePacket.getAddress());
-        		System.out.println("Host port: " + receivePacket.getPort());
-        		System.out.println("Length: " + receivePacket.getLength());
-        		System.out.println("Containing: " + new String(receivePacket.getData()));
-        		System.out.println("Byte form: " + Arrays.toString(receivePacket.getData()) + "\n\n");
 
-                // Get the data from the file
+        		// Get the data from the file
         		byte[] b = parseFile(blockNumber);
 
                 // If there is no more data left in the file break the loop
-                if (b == null) {
+                if (b == null || b[0] == 0) {
                     break;
                 }
-
+                
+                ByteArrayOutputStream reply = new ByteArrayOutputStream();
+                reply.write(byteBlockNumber, 0, byteBlockNumber.length);
+                reply.write(b, 0, b.length);
+                
                 // Otherwise send the new packet to the server
-                response = createPacket(DATA_CODE, b, receivePacket.getPort());
+                response = createPacket(DATA_CODE, reply.toByteArray(), receivePacket.getPort());
 
 
         	} else if (Arrays.equals(opCode, DATA_CODE)) {
                 // Get the data
                 byte[] transferred = Arrays.copyOfRange(receivePacket.getData(), 4, 516);
-                String s = new String(transferred);
-                System.out.println("Data: " + s);
 
                 // Check if there is more data to be read or not
                 if (transferred[transferred.length - 1] == 0) {
@@ -149,16 +147,16 @@ public class Client {
                 }
 
                 // Otherwise send an acknowledge to the server
-                response = createPacket(ACK_CODE, byteBlockNumber, receivePacket.getPort());
-                System.out.println("Client: Sending packet:");
-                System.out.println("To host: " + response.getAddress());
-                System.out.println("Destination host port: " + response.getPort());
-                System.out.println("Length: " + response.getLength());
-                System.out.print("Containing: " + new String(response.getData()));
-                System.out.println("Byte form: " + Arrays.toString(response.getData()) + "\n\n");
+                response = createPacket(ACK_CODE, byteBlockNumber, receivePacket.getPort());    
             }
 
-        	System.out.println("SENDING STUFF");
+        	System.out.println("Client: Sending packet:");
+            System.out.println("To host: " + response.getAddress());
+            System.out.println("Destination host port: " + response.getPort());
+            System.out.println("Length: " + response.getLength());
+            System.out.println("Containing: " + new String(response.getData()));
+            System.out.println("Byte form: " + Arrays.toString(response.getData()) + "\n\n");
+            
             try {
                 sendReceiveSocket.send(response);
             } catch (IOException e) {
@@ -268,7 +266,6 @@ public class Client {
                 }
             } else {
                 System.out.println("Instruction invalid length!");
-                return;
             }
         }
         // We're finished, so close the socket.
