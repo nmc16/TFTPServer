@@ -20,6 +20,7 @@ public class ServerResponse2 implements Runnable {
     private static final byte WRQ = 2;
     private static final byte DATA = 3;
     private static final byte ACK = 4;
+    
 	private DatagramPacket initialPacket;
 	private DatagramPacket data;
 	private DatagramSocket socket;
@@ -50,6 +51,42 @@ public class ServerResponse2 implements Runnable {
  	   }
  	   return newmsg;
     }
+    
+    
+    
+    
+    
+    /**
+     * Creates datagram error packet using information passed.
+     * 
+     * @param ERRCode 2 byte Error Code
+     * @param addressAddress to send to the Error Packet to
+     * @param port port to send Packet to
+     * @return void
+     */
+    public void sendERRPacket(byte[] ErrCode,  InetAddress address, String tempString, int port) {
+        // Check that the Error code is valid before creating
+        if (ErrCode.length != 2) {
+            throw new IllegalArgumentException("Op code must be length 2! Found length " + ErrCode.length + ".");
+        }
+
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+        buffer.write(0);
+        buffer.write(5);
+        buffer.write(ErrCode[0]);
+        buffer.write(ErrCode[1]);
+        buffer.write(tempString.getBytes(), 0, tempString.length());
+        buffer.write(0);
+
+        DatagramPacket ErrPack = new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, port);
+        
+        try {
+	        socket.send(ErrPack);
+	    } catch (IOException e) {
+	        e.printStackTrace();
+	    }
+    }
 	
 	
 	/**
@@ -69,7 +106,7 @@ public class ServerResponse2 implements Runnable {
 	 * 
 	 * @return returns the file corresponding to the client request
 	 */
-	public File getFile() {
+	public File getFile() throws SecurityException {
 		int len = 0;
 		int curr=2;
 		
@@ -82,7 +119,9 @@ public class ServerResponse2 implements Runnable {
 		System.arraycopy(initialPacket.getData(), 2, file, 0, len);
 
 		String fileName = (new String(file));
-		  
+		SecurityManager sm = new SecurityManager();
+		sm.checkRead(fileName);
+
 		File f = new File(fileName);
 		
 		return f;
@@ -90,7 +129,7 @@ public class ServerResponse2 implements Runnable {
 	/**
 	 * Reads file 512 bytes at a time from the file of the clients requests choice
 	 */
-	public void readFile() {
+	public void readFile() throws FileNotFoundException {
 		byte[] block = {0, 0};
 		boolean flag = false;
 		int newsize;
@@ -110,7 +149,14 @@ public class ServerResponse2 implements Runnable {
 			reply.write(block, 0, block.length);
         
 			byte[] buffer = new byte[512];
-			File file = getFile();
+			
+			File file;
+			try {
+				file = getFile();
+			} catch (SecurityException e) {
+				throw e;
+			}
+			
 			if (file.exists()) {
 				try {
 					RandomAccessFile f = new RandomAccessFile(file, "r");
@@ -131,8 +177,7 @@ public class ServerResponse2 implements Runnable {
 	                if (i < 512) {
 	                	flag = true;
 	                }
-				} catch (FileNotFoundException e) {
-					e.printStackTrace();
+	                
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -248,7 +293,11 @@ public class ServerResponse2 implements Runnable {
 	public void run() {
 	    
 	    if (initialPacket.getData()[1] == RRQ) {
-	        readFile();
+	    	try {
+	    		readFile();
+	    	} catch (FileNotFoundException e) {
+	    		sendERRPacket(, address, e.getMessage(), port);
+	    	}
 	    } else {
             writeToFile();
 	    }
