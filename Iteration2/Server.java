@@ -10,7 +10,7 @@ import java.net.*;
  * Main Server program, takes in requests from intermediate host threads and makes a corresponding server thread
  *
  */
-public class Server2 {
+public class Server {
 
 	//initialize the sockets and packets
    DatagramPacket sendPacket, receivePacket;
@@ -18,7 +18,7 @@ public class Server2 {
    
    public static boolean shall = true;
    
-   //change a byte array into a string of vyte numbers
+   //change a byte array into a string of byte numbers
    public String changetobytes(byte msg[]){
 	   String cud = "";
 	   int n = 0;
@@ -91,7 +91,7 @@ public class Server2 {
    }
 
    //start up the sockets
-   public Server2() {
+   public Server() {
       try {
          receiveSocket = new DatagramSocket(69);
      
@@ -141,7 +141,7 @@ public class Server2 {
           //verify the data
           if(verify(mydata)){
         	  System.out.println("verified\n");
-        	  Thread clientThread = new Thread(new ServerResponse2(receivePacket));
+        	  Thread clientThread = new Thread(new ServerResponse(receivePacket));
         	  clientThread.start();
           } else{
               //terminate the program
@@ -155,7 +155,7 @@ public class Server2 {
    }
 
    public static void main(String args[]) {
-       Server2 c = new Server2();
+       Server c = new Server();
 	   c.receiveAndEcho();
    }
 }

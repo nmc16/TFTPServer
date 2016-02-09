@@ -5,7 +5,7 @@ import java.util.Arrays;
  *Main error simulator creates a ErroSimThread for each new client request 
  *
  */
-public class ErrorSim2 {
+public class ErrorSim {
 
 	private DatagramPacket receivePacket;
 	private DatagramSocket receiveSocket;
@@ -13,7 +13,7 @@ public class ErrorSim2 {
 	public static boolean shall = true;
    
 	//Initialize the sockets
-	public ErrorSim2() {
+	public ErrorSim() {
 		try {
 			receiveSocket = new DatagramSocket(68);
 		} catch (SocketException se) {
@@ -68,7 +68,7 @@ public class ErrorSim2 {
 			System.out.println("Containing: " + new String(receivePacket.getData()));
 			System.out.println("In bytes " + Arrays.toString(datamin) + "\n\n");
 	      
-			Thread t = new Thread(new ErrorSimThread2(receivePacket));
+			Thread t = new Thread(new ErrorSimThread(receivePacket));
 			t.start();
 		}
       
@@ -76,7 +76,7 @@ public class ErrorSim2 {
 	}
 	
 	public static void main(String args[]) {
-		ErrorSim2 c = new ErrorSim2();
+		ErrorSim c = new ErrorSim();
 		c.receiveAndEcho();
 	}
 }

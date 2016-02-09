@@ -14,23 +14,35 @@ import java.io.*;
  * The thread created by the server, breaks up data for read and write request from the client and sends to the error sim thread
  *
  */
-public class ServerResponse2 implements Runnable {
+public class ServerResponse implements Runnable {
     private static final int DATA_SIZE = 516;
     private static final byte RRQ = 1;
     private static final byte WRQ = 2;
     private static final byte DATA = 3;
     private static final byte ACK = 4;
+    private static final byte EC0[] = {0, 0};
+    private static final byte EC1[] = {0, 1};
+    private static final byte EC2[] = {0, 2};
+    private static final byte EC3[] = {0, 3};
+    private static final byte EC4[] = {0, 4};
+    private static final byte EC5[] = {0, 5};
+    private static final byte EC6[] = {0, 6};
+    private static final byte EC7[] = {0, 7};
     
 	private DatagramPacket initialPacket;
 	private DatagramPacket data;
 	private DatagramSocket socket;
 	
-	public ServerResponse2(DatagramPacket data) {
+	private InetAddress address;
+	private int port;
+	
+	public ServerResponse(DatagramPacket data) {
 		this.initialPacket = data;
 		this.data = data;
 	    try {
 	    	Random r = new Random();
-	        InetAddress address = InetAddress.getLocalHost();
+	        this.address = data.getAddress();
+	        this.port = data.getPort();
 	        socket = new DatagramSocket(r.nextInt(65553));
 	    } catch (IOException e) {
 	        e.printStackTrace();
@@ -93,11 +105,14 @@ public class ServerResponse2 implements Runnable {
 	 * creates a new text file if it doesn't already exist
 	 * @param file file to check if it exists
 	 */
-	public void createFile(File file) {
+	public void createFile(File file) throws ExistsException {
 		try {
 			if(!file.exists()) {
 				file.createNewFile();
-			} 
+			}
+			else{
+				throw new ExistsException("File already exists");
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -128,8 +143,9 @@ public class ServerResponse2 implements Runnable {
 	}
 	/**
 	 * Reads file 512 bytes at a time from the file of the clients requests choice
+	 * @throws IllegalOPException 
 	 */
-	public void readFile() throws FileNotFoundException {
+	public void readFile() throws FileNotFoundException, SecurityException, AddressException, IllegalOPException {
 		byte[] block = {0, 0};
 		boolean flag = false;
 		int newsize;
@@ -167,9 +183,6 @@ public class ServerResponse2 implements Runnable {
 						System.out.println("IN here");
 						buffer = new byte[newsize];
 					}
-					System.out.println("length is " + f.length());
-					System.out.println("pointer is " + f.getFilePointer());
-					System.out.println("OUT here");
 					int i = f.read(buffer, 0, buffer.length);
 					reply.write(buffer, 0, buffer.length);
 	                f.close();
@@ -212,15 +225,26 @@ public class ServerResponse2 implements Runnable {
 		    	} catch (IOException e) {
 		    		e.printStackTrace();
 		    	}
+		    	if(data.getAddress() != this.address){
+		    		throw new AddressException("unknown Transfer Id");
+		    	}
+		    	if(data.getData()[0] != 0 || data.getData()[1] != 3){
+			    	throw new IllegalOPException("Not vaild ACK OpCode");
+			    }
 		    }
 		} 
 	}
 	/**
 	 * for write requests, send data packet for the client to wrote 2 512 bytes at a time
+	 * @throws IllegalOPException 
 	 */
-	public void writeToFile() {
-		File file = getFile();
-		createFile(file);
+	public void writeToFile() throws SecurityException, IllegalOPException {
+		File file;
+		try {
+			file = getFile();
+		} catch (SecurityException e) {
+			throw e;
+		}
 		
 		byte[] block = {0, 0};
 		boolean flag = false;
@@ -261,6 +285,7 @@ public class ServerResponse2 implements Runnable {
 	    		e.printStackTrace();
 	    	}
 	    	
+	    	
 	    	byte datamin[] = minimi(receivePacket.getData(), receivePacket.getLength());
 	    	//print out the data on the sent packet
 		    System.out.println( "Server: Received packet:");
@@ -269,8 +294,12 @@ public class ServerResponse2 implements Runnable {
 		    System.out.println("Length: " + receivePacket.getLength());
 		    System.out.println("Containing: " + Arrays.toString(datamin) + "\n");
 		    
-	    	block[0] = receivePacket.getData()[2];
-	    	block[1] = receivePacket.getData()[3];
+		    if(datamin[0] != 0 || datamin[1] != 4){
+		    	throw new IllegalOPException("Not vaild DATA OpCode");
+		    }
+		    
+	    	block[0] = datamin[2];
+	    	block[1] = datamin[3];
 	    	
 	    	byte[] b = Arrays.copyOfRange(datamin, 3, datamin.length);
 	    	if (b[b.length - 1] == 0) {
@@ -296,10 +325,22 @@ public class ServerResponse2 implements Runnable {
 	    	try {
 	    		readFile();
 	    	} catch (FileNotFoundException e) {
-	    		sendERRPacket(, address, e.getMessage(), port);
+	    		sendERRPacket(EC1, address, e.getMessage(), port);
+	    	} catch (SecurityException e) {
+	    		sendERRPacket(EC2, address, e.getMessage(), port);
+	    	} catch (IllegalOPException e) {
+	    		sendERRPacket(EC4, address, e.getMessage(), port);
+	    	} catch (AddressException e) {
+	    		sendERRPacket(EC5, address, e.getMessage(), port); 
 	    	}
 	    } else {
-            writeToFile();
+	    	try {
+	    		writeToFile();
+	    	} catch (SecurityException e) {
+	    		sendERRPacket(EC2, address, e.getMessage(), port);
+	    	} catch (IllegalOPException e) {
+	    		sendERRPacket(EC4, address, e.getMessage(), port);
+	    	}
 	    }
 	    
 	}

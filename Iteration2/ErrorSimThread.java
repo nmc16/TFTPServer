@@ -7,13 +7,13 @@ import java.util.Arrays;
  * The Thread for the Error simulator, takes init input from the Error simulator then send the request to the server (cont communication with server thread)
  *
  */
-public class ErrorSimThread2 implements Runnable {
+public class ErrorSimThread implements Runnable {
 	private DatagramPacket packet;
 	private DatagramSocket sendReceiveSocket;
 	private int clientPort;
 	private int serverPort;
 	
-	public ErrorSimThread2(DatagramPacket packet) {
+	public ErrorSimThread(DatagramPacket packet) {
 		this.packet = packet;
 		this.clientPort = packet.getPort();
 		try {

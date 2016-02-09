@@ -15,7 +15,7 @@ import java.util.Scanner;
  * Client program that connects through the error detector to connect to the server
  * and perform file operations.
  */
-public class Client2 {
+public class Client {
     private DatagramPacket receivePacket;
     private DatagramSocket sendReceiveSocket;
     private static final byte READ_CODE[] = {0, 1};
@@ -27,7 +27,7 @@ public class Client2 {
     private String location, mode;
 
 
-    public Client2() {
+    public Client() {
         try {
         	// Randomize a port number and create the socket
             Random r = new Random();
@@ -358,7 +358,7 @@ public class Client2 {
     }
 
     public static void main(String args[]) {
-        Client2 c = new Client2();
+        Client c = new Client();
         c.run();
     }
 }
