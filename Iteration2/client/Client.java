@@ -1,3 +1,5 @@
+package client;
+
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -12,7 +14,7 @@ import java.util.Random;
 import java.util.Scanner;
 
 /**
- * Client program that connects through the error detector to connect to the server
+ * client.Client program that connects through the error detector to connect to the server
  * and perform file operations.
  */
 public class Client {
@@ -58,10 +60,6 @@ public class Client {
  	   }
  	   return newmsg;
     }
-    
-    
-    
-    
 
     /**
      * Parses the file by blocks using the block number given where each block holds 512 
@@ -114,7 +112,7 @@ public class Client {
     public void sendAndReceive(DatagramPacket sendPacket) {
 
         //Print out the info on the packet
-        System.out.println("Client: Sending packet:");
+        System.out.println("client.Client: Sending packet:");
         System.out.println("To host: " + sendPacket.getAddress());
         System.out.println("Destination host port: " + sendPacket.getPort());
         System.out.println("Length: " + sendPacket.getLength());
@@ -130,7 +128,7 @@ public class Client {
             System.exit(1);
         }
 
-        System.out.println("Client: Packet sent.\n");
+        System.out.println("client.Client: Packet sent.\n");
 
         // Construct a DatagramPacket for receiving packets up
         // to 516 bytes long (the length of the byte array).
@@ -149,7 +147,7 @@ public class Client {
 
         	// Process the received datagram.
         	byte datamin[] = minimi(receivePacket.getData(), receivePacket.getLength());
-        	System.out.println("Client: Packet received:");
+        	System.out.println("client.Client: Packet received:");
         	System.out.println("From host: " + receivePacket.getAddress());
         	System.out.println("Host port: " + receivePacket.getPort());
         	System.out.println("Length: " + receivePacket.getLength());
@@ -202,16 +200,17 @@ public class Client {
                 response = createPacket(ACK_CODE, byteBlockNumber, receivePacket.getPort());    
             }
 
-        	System.out.println("Client: Sending packet:");
-            System.out.println("To host: " + response.getAddress());
-            System.out.println("Destination host port: " + response.getPort());
-            System.out.println("Length: " + response.getLength());
-            System.out.println("Containing: " + new String(response.getData()));
-            System.out.println("Byte form: " + Arrays.toString(response.getData()) + "\n\n");
-            
+            // TODO this needs to be refactored
+            if (response != null) {
+        	    System.out.println("Client: Sending packet:");
+                System.out.println("To host: " + response.getAddress());
+                System.out.println("Destination host port: " + response.getPort());
+                System.out.println("Length: " + response.getLength());
+                System.out.println("Containing: " + new String(response.getData()));
+                System.out.println("Byte form: " + Arrays.toString(response.getData()) + "\n\n");
+            }
 
             // Send the response to the server
-
             try {
                 sendReceiveSocket.send(response);
             } catch (IOException e) {
@@ -343,7 +342,7 @@ public class Client {
 
             if (args.length > 0) {
                 if (args[0].toLowerCase().equals("quit")) {
-                    System.out.println("Client shutting down...");
+                    System.out.println("client.Client shutting down...");
                     break;
                 } else {
                     runCommand(args);

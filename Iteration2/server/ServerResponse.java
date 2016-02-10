@@ -1,3 +1,9 @@
+package server;
+
+import exception.AddressException;
+import exception.ExistsException;
+import exception.IllegalOPException;
+
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -71,23 +77,23 @@ public class ServerResponse implements Runnable {
     /**
      * Creates datagram error packet using information passed.
      * 
-     * @param ERRCode 2 byte Error Code
-     * @param addressAddress to send to the Error Packet to
+     * @param errCode 2 byte Error Code
+     * @param address to send to the Error Packet to
      * @param port port to send Packet to
      * @return void
      */
-    public void sendERRPacket(byte[] ErrCode,  InetAddress address, String tempString, int port) {
+    public void sendERRPacket(byte[] errCode,  InetAddress address, String tempString, int port) {
         // Check that the Error code is valid before creating
-        if (ErrCode.length != 2) {
-            throw new IllegalArgumentException("Op code must be length 2! Found length " + ErrCode.length + ".");
+        if (errCode.length != 2) {
+            throw new IllegalArgumentException("Op code must be length 2! Found length " + errCode.length + ".");
         }
 
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
         buffer.write(0);
         buffer.write(5);
-        buffer.write(ErrCode[0]);
-        buffer.write(ErrCode[1]);
+        buffer.write(errCode[0]);
+        buffer.write(errCode[1]);
         buffer.write(tempString.getBytes(), 0, tempString.length());
         buffer.write(0);
 
@@ -108,6 +114,7 @@ public class ServerResponse implements Runnable {
 	public void createFile(File file) throws ExistsException {
 		try {
 			if(!file.exists()) {
+                // TODO should check the value this returns
 				file.createNewFile();
 			}
 			else{
@@ -121,7 +128,7 @@ public class ServerResponse implements Runnable {
 	 * 
 	 * @return returns the file corresponding to the client request
 	 */
-	public File getFile() throws SecurityException {
+	public File getFile() {
 		int len = 0;
 		int curr=2;
 		
@@ -134,9 +141,6 @@ public class ServerResponse implements Runnable {
 		System.arraycopy(initialPacket.getData(), 2, file, 0, len);
 
 		String fileName = (new String(file));
-		SecurityManager sm = new SecurityManager();
-		sm.checkRead(fileName);
-
 		File f = new File(fileName);
 		
 		return f;
@@ -150,7 +154,7 @@ public class ServerResponse implements Runnable {
 		boolean flag = false;
 		int newsize;
         long newsize2;
-		
+
 		while(!flag) {
 			ByteArrayOutputStream reply = new ByteArrayOutputStream();
 		
@@ -166,14 +170,14 @@ public class ServerResponse implements Runnable {
         
 			byte[] buffer = new byte[512];
 			
-			File file;
-			try {
-				file = getFile();
-			} catch (SecurityException e) {
-				throw e;
-			}
-			
+			File file = getFile();
+
 			if (file.exists()) {
+                if (!file.canRead()) {
+                    throw new SecurityException("Access Denied: File " + file.getAbsolutePath() + "does not have" +
+                                                " read access");
+                }
+
 				try {
 					RandomAccessFile f = new RandomAccessFile(file, "r");
 					f.seek((blockNumber - 1) * 512);
@@ -202,7 +206,7 @@ public class ServerResponse implements Runnable {
 		    DatagramPacket responseData = new DatagramPacket(reply.toByteArray(), reply.toByteArray().length,
 		                                                     data.getAddress(), data.getPort());
 		    //print out the data on the sent packet
-		    System.out.println( "Server: Sending packet:");
+		    System.out.println( "server.Server: Sending packet:");
 		    System.out.println("To host: " + responseData.getAddress());
 		    System.out.println("Destination host port: " + responseData.getPort());
 		    int len = responseData.getLength();
@@ -238,13 +242,14 @@ public class ServerResponse implements Runnable {
 	 * for write requests, send data packet for the client to wrote 2 512 bytes at a time
 	 * @throws IllegalOPException 
 	 */
-	public void writeToFile() throws SecurityException, IllegalOPException {
-		File file;
-		try {
-			file = getFile();
-		} catch (SecurityException e) {
-			throw e;
-		}
+	public void writeToFile() throws SecurityException, IllegalOPException, ExistsException {
+        File file = getFile();
+        createFile(file);
+
+        if (!file.canWrite()) {
+            throw new SecurityException("Access Denied: File " + file.getAbsolutePath() + "does not have" +
+                                        " write access");
+        }
 		
 		byte[] block = {0, 0};
 		boolean flag = false;
@@ -259,7 +264,7 @@ public class ServerResponse implements Runnable {
 		    DatagramPacket responseData = new DatagramPacket(reply.toByteArray(), reply.toByteArray().length,
 		                                                     data.getAddress(), data.getPort());
 		    //print out the data on the sent packet
-		    System.out.println( "Server: Sending packet:");
+		    System.out.println( "server.Server: Sending packet:");
 		    System.out.println("To host: " + responseData.getAddress());
 		    System.out.println("Destination host port: " + responseData.getPort());
 		    System.out.println("Length: " + responseData.getLength());
@@ -288,13 +293,13 @@ public class ServerResponse implements Runnable {
 	    	
 	    	byte datamin[] = minimi(receivePacket.getData(), receivePacket.getLength());
 	    	//print out the data on the sent packet
-		    System.out.println( "Server: Received packet:");
+		    System.out.println( "server.Server: Received packet:");
 		    System.out.println("From host: " + receivePacket.getAddress());
 		    System.out.println("Host port: " + receivePacket.getPort());
 		    System.out.println("Length: " + receivePacket.getLength());
 		    System.out.println("Containing: " + Arrays.toString(datamin) + "\n");
 		    
-		    if(datamin[0] != 0 || datamin[1] != 4){
+		    if(datamin[0] != 0 || datamin[1] != 3){
 		    	throw new IllegalOPException("Not vaild DATA OpCode");
 		    }
 		    
@@ -340,7 +345,9 @@ public class ServerResponse implements Runnable {
 	    		sendERRPacket(EC2, address, e.getMessage(), port);
 	    	} catch (IllegalOPException e) {
 	    		sendERRPacket(EC4, address, e.getMessage(), port);
-	    	}
+	    	} catch (ExistsException e) {
+                sendERRPacket(EC6, address, e.getMessage(), port);
+            }
 	    }
 	    
 	}

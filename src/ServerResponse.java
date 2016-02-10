@@ -104,7 +104,7 @@ public class ServerResponse implements Runnable {
 		    DatagramPacket responseData = new DatagramPacket(reply.toByteArray(), reply.toByteArray().length,
 		                                                     data.getAddress(), data.getPort());
 		    //print out the data on the sent packet
-		    System.out.println( "Server: Sending packet:");
+		    System.out.println( "server.Server: Sending packet:");
 		    System.out.println("To host: " + responseData.getAddress());
 		    System.out.println("Destination host port: " + responseData.getPort());
 		    int len = responseData.getLength();
@@ -148,7 +148,7 @@ public class ServerResponse implements Runnable {
 		    DatagramPacket responseData = new DatagramPacket(reply.toByteArray(), reply.toByteArray().length,
 		                                                     data.getAddress(), data.getPort());
 		    //print out the data on the sent packet
-		    System.out.println( "Server: Sending packet:");
+		    System.out.println( "server.Server: Sending packet:");
 		    System.out.println("To host: " + responseData.getAddress());
 		    System.out.println("Destination host port: " + responseData.getPort());
 		    System.out.println("Length: " + responseData.getLength());
@@ -175,7 +175,7 @@ public class ServerResponse implements Runnable {
 	    	}
 	    	
 	    	//print out the data on the sent packet
-		    System.out.println( "Server: Received packet:");
+		    System.out.println( "server.Server: Received packet:");
 		    System.out.println("From host: " + receivePacket.getAddress());
 		    System.out.println("Host port: " + receivePacket.getPort());
 		    System.out.println("Length: " + receivePacket.getLength());
