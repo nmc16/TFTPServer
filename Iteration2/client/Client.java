@@ -1,7 +1,9 @@
 package client;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.DatagramPacket;
@@ -13,6 +15,7 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
 
+import exception.ExistsException;
 import shared.Helper;
 
 /**
@@ -28,7 +31,7 @@ public class Client {
     private static final byte ACK_CODE[] = {0, 4};
     private static final int HOST_PORT = 68;
     private InetAddress address;
-    private String location, mode;
+    private String location, mode, saveLocation;
 
 
     public Client() {
@@ -87,6 +90,26 @@ public class Client {
 		
 		return null;
     }
+	
+	public void writeFile(String data) {
+		File file = new File(saveLocation);
+		
+		try {
+			Helper.createFile(file);
+		} catch (ExistsException e) {
+			e.printStackTrace();
+			return;
+		}
+		
+		try {
+			FileWriter fw = new FileWriter(file, true);
+			fw.write(data);
+			fw.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} 
+		
+	}
     
 	/**
 	 * Method that sends the initial request to the server and keeps the server and client 
@@ -181,7 +204,8 @@ public class Client {
                     break;
                 }
                 
-                
+                byte[] minimized = Helper.minimi(transferred, transferred.length);
+                writeFile(new String(minimized));
 
                 // Otherwise send an acknowledge to the server
                 response = createPacket(ACK_CODE, byteBlockNumber, receivePacket.getPort());    
@@ -212,7 +236,7 @@ public class Client {
      */
     public void printMenu() {
         System.out.println(" Options:");
-        System.out.println("    read [filename] [mode] - Reads the file from the server under filename");
+        System.out.println("    read [filename] [file location] [mode] - Reads the file from the server under filename");
         System.out.println("    write [filename] [file location] [mode] - Writes file at location to");
         System.out.println("                                               filename on server.");
         System.out.println("    help - Prints options screen.");
@@ -293,11 +317,12 @@ public class Client {
         }
 
         if (args[0].toLowerCase().equals("read")) {
-            if (args.length != 3) {
+            if (args.length != 4) {
                 System.out.println("Instruction invalid length!");
                 return;
             }
-            DatagramPacket packet = createPacket(READ_CODE, args[1], args[2]);
+            DatagramPacket packet = createPacket(READ_CODE, args[1], args[3]);
+            saveLocation = args[2];
             sendAndReceive(packet);
         } else if (args[0].toLowerCase().equals("write")) {
             if (args.length != 4) {
