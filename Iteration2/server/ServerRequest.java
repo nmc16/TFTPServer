@@ -127,7 +127,7 @@ public class ServerRequest implements Runnable {
         }
 
         // Close it up
-        System.out.println("server.Server waiting for current requests to finish...");
+        System.out.println("server.Server waiting for current requests to finish (" + openRequests.size() + ")...");
         receiveSocket.close();
 
         for (Thread t : openRequests) {
@@ -138,7 +138,5 @@ public class ServerRequest implements Runnable {
                 e.printStackTrace();
             }
         }
-
-        System.exit(0);
     }
 }

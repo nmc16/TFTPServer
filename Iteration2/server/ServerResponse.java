@@ -307,7 +307,7 @@ public class ServerResponse implements Runnable {
 	    	block[1] = datamin[3];
 	    	
 	    	byte[] b = Arrays.copyOfRange(datamin, 3, datamin.length);
-	    	if (b[b.length - 1] == 0) {
+	    	if (datamin.length < 512) {
 	    		flag = true;
 	    	}
 	    	
