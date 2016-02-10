@@ -173,10 +173,10 @@ public class ServerResponse implements Runnable {
 		    	} catch (IOException e) {
 		    		e.printStackTrace();
 		    	}
-		    	if(data.getAddress() != this.address){
+		    	if(!data.getAddress().equals(this.address)){
 		    		throw new AddressException("unknown Transfer Id");
 		    	}
-		    	if(data.getData()[0] != 0 || data.getData()[1] != 3){
+		    	if(data.getData()[0] != 0 || data.getData()[1] != 4){
 			    	throw new IllegalOPException("Not vaild ACK OpCode");
 			    }
 		    }
