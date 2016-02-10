@@ -8,8 +8,11 @@ import java.util.Arrays;
 
 import shared.Helper;
 /**
- * The Thread for the Error simulator, takes init input from the Error simulator then send the request to the server (cont communication with server thread)
- *
+ * The Thread for the Error simulator, takes init input from the Error simulator then send the request to the server 
+ * (continued communication with server thread).
+ * 
+ * @version 2
+ * @author Team6
  */
 public class ErrorSimThread implements Runnable {
 	private DatagramPacket packet;

@@ -19,8 +19,11 @@ import exception.ExistsException;
 import shared.Helper;
 
 /**
- * client.Client program that connects through the error detector to connect to the server
+ * Client program that connects through the error detector to connect to the server
  * and perform file operations.
+ * 
+ * @version 2
+ * @author Team6
  */
 public class Client {
     private DatagramPacket receivePacket;
@@ -76,7 +79,8 @@ public class Client {
 					newsize = (int) newsize2;
 					data = new byte[newsize];
 				}
-
+				
+				// Read the data into the byte array and return it
 				file.read(data, 0, data.length);
 				file.close();
                 return data;
@@ -91,18 +95,19 @@ public class Client {
 		return null;
     }
 	
-	public void writeFile(String data) {
-		File file = new File(saveLocation);
-		
+	/**
+	 * File write method for the client side read that will write to the
+	 * string contents passed to the file in append mode so that no data is overwritten.
+	 * 
+	 * @param data Data to write to file
+	 * @param file File to append data into
+	 */
+	public void writeFile(String data, File file) {
 		try {
-			Helper.createFile(file);
-		} catch (ExistsException e) {
-			e.printStackTrace();
-			return;
-		}
-		
-		try {
+			// Open a file writer in append mode
 			FileWriter fw = new FileWriter(file, true);
+			
+			// Write the data and close the writer
 			fw.write(data);
 			fw.close();
 		} catch (IOException e) {
@@ -198,14 +203,15 @@ public class Client {
                 // Get the data
                 byte[] transferred = Arrays.copyOfRange(receivePacket.getData(), 4, 516);
 
+                byte[] minimized = Helper.minimi(transferred, transferred.length);
+                
+                writeFile(new String(minimized), new File(saveLocation));
+                
                 // Check if there is more data to be read or not
                 if (transferred[transferred.length - 1] == 0) {
                     // No more data to be read
                     break;
                 }
-                
-                byte[] minimized = Helper.minimi(transferred, transferred.length);
-                writeFile(new String(minimized));
 
                 // Otherwise send an acknowledge to the server
                 response = createPacket(ACK_CODE, byteBlockNumber, receivePacket.getPort());    
@@ -323,6 +329,12 @@ public class Client {
             }
             DatagramPacket packet = createPacket(READ_CODE, args[1], args[3]);
             saveLocation = args[2];
+    		File file = new File(saveLocation);
+            try {
+    			Helper.createFile(file);
+    		} catch (ExistsException e) {
+    			e.printStackTrace();
+    		}
             sendAndReceive(packet);
         } else if (args[0].toLowerCase().equals("write")) {
             if (args.length != 4) {
