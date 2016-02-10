@@ -112,9 +112,9 @@ public class Helper {
      * @param packet DatagramPacket to print data of
      * @param header Header to print at top to show how is displaying data 
      */
-    public static void printPacketData(DatagramPacket packet, String header) {
+    public static void printPacketData(DatagramPacket packet, String header, boolean verbose) {
         // Print out the data on the received package if verbose mode on
-        if (ServerSettings.verbose) {
+        if (verbose) {
             System.out.println("\n" + header + ": ");
             System.out.println("From host: " + packet.getAddress());
             System.out.println("Host port: " + packet.getPort());

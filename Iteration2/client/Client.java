@@ -33,6 +33,7 @@ public class Client {
     private static final byte DATA_CODE[] = {0, 3};
     private static final byte ACK_CODE[] = {0, 4};
     private static final int HOST_PORT = 68;
+    private static boolean verbose = false;
     private InetAddress address;
     private String location, mode, saveLocation;
 
@@ -125,15 +126,9 @@ public class Client {
     public void sendAndReceive(DatagramPacket sendPacket) {
 
         //Print out the info on the packet
-        System.out.println("client.Client: Sending packet:");
-        System.out.println("To host: " + sendPacket.getAddress());
-        System.out.println("Destination host port: " + sendPacket.getPort());
-        System.out.println("Length: " + sendPacket.getLength());
-        System.out.println("Containing: " + new String(sendPacket.getData()));
-        System.out.println("Byte form: " + Arrays.toString(sendPacket.getData()) + "\n\n");
-
+    	Helper.printPacketData(sendPacket, "Client: Sending packet", verbose);
+       
         // Send the datagram packet to the intermediate via the send/receive socket.
-
         try {
             sendReceiveSocket.send(sendPacket);
         } catch (IOException e) {
@@ -141,11 +136,8 @@ public class Client {
             System.exit(1);
         }
 
-        System.out.println("client.Client: Packet sent.\n");
-
         // Construct a DatagramPacket for receiving packets up
         // to 516 bytes long (the length of the byte array).
-
         while (true) {
         	byte data[] = new byte[516];
         	receivePacket = new DatagramPacket(data, data.length);
@@ -159,13 +151,7 @@ public class Client {
         	}
 
         	// Process the received datagram.
-        	byte datamin[] = Helper.minimi(receivePacket.getData(), receivePacket.getLength());
-        	System.out.println("client.Client: Packet received:");
-        	System.out.println("From host: " + receivePacket.getAddress());
-        	System.out.println("Host port: " + receivePacket.getPort());
-        	System.out.println("Length: " + receivePacket.getLength());
-        	System.out.println("Containing: " + new String(receivePacket.getData()));
-            System.out.println("In byte form: " + Arrays.toString(datamin) + "\n\n");
+        	Helper.printPacketData(receivePacket, "Client: Packet received", verbose);
         	
         	// Check the OP Code
         	byte[] opCode = Arrays.copyOfRange(receivePacket.getData(), 0, 2);
@@ -219,12 +205,7 @@ public class Client {
 
             // TODO this needs to be refactored
             if (response != null) {
-        	    System.out.println("Client: Sending packet:");
-                System.out.println("To host: " + response.getAddress());
-                System.out.println("Destination host port: " + response.getPort());
-                System.out.println("Length: " + response.getLength());
-                System.out.println("Containing: " + new String(response.getData()));
-                System.out.println("Byte form: " + Arrays.toString(response.getData()) + "\n\n");
+        	    Helper.printPacketData(response, "Client: Sending Packet", verbose);
             }
 
             // Send the response to the server
@@ -245,6 +226,7 @@ public class Client {
         System.out.println("    read [filename] [file location] [mode] - Reads the file from the server under filename");
         System.out.println("    write [filename] [file location] [mode] - Writes file at location to");
         System.out.println("                                               filename on server.");
+        System.out.println("    verbose [true|false] - Changes server display mode to verbose or silent mode.");
         System.out.println("    help - Prints options screen.");
         System.out.println("    quit - Quits the client program.");
     }
@@ -343,7 +325,14 @@ public class Client {
             }
             DatagramPacket packet = createPacket(WRITE_CODE, args[1], args[3], args[2]);
             sendAndReceive(packet);
-        } else {
+        } else if (args[0].toLowerCase().equals("verbose")) {
+        	if (args.length != 2) {
+        		System.out.println("Instruction invalid length!");
+                return;
+        	}
+        	verbose = true;
+        }
+        else {
             System.out.println("Invalid command entered!");
         }
     }
@@ -355,10 +344,10 @@ public class Client {
         Scanner reader = new Scanner(System.in);
         System.out.println("Starting client...");
         printMenu();
-
+        System.out.print("ENTER COMMAND > ");
+        
         while(true) {
             // Read the input from the user
-            System.out.print("> ");
             String input = reader.nextLine();
 
             // Parse the input and check for keywords
@@ -366,7 +355,7 @@ public class Client {
 
             if (args.length > 0) {
                 if (args[0].toLowerCase().equals("quit")) {
-                    System.out.println("client.Client shutting down...");
+                    System.out.println("Client shutting down...");
                     break;
                 } else {
                     runCommand(args);

@@ -9,10 +9,13 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 
-
-
 /**
- * Created by Admin on 09/02/16.
+ * Thread that receives incoming requests from clients and delegates them to individual
+ * {@link ServerResponse} threads. Checks the requests are valid and sends an error packet
+ * back if they are not.
+ * 
+ * @version 2
+ * @author Team6
  */
 public class ServerRequest implements Runnable {
 
@@ -95,8 +98,7 @@ public class ServerRequest implements Runnable {
                 // Verify the data
                 if(verify(mydata)){
                     // Print out the data on the received package
-                    System.out.println("verified\n");
-                    Helper.printPacketData(receivePacket, "Server");
+                    Helper.printPacketData(receivePacket, "Server", ServerSettings.verbose);
                     Thread clientThread = new Thread(new ServerResponse(receivePacket));
                     clientThread.start();
                     openRequests.add(clientThread);
@@ -104,8 +106,6 @@ public class ServerRequest implements Runnable {
                     //terminate the program
                     throw new RuntimeException("Invalid data request");
                 }
-
-                System.out.println("Server: packet sent");
 
             } catch (SocketTimeoutException e) {
                 // We don't care because our calls are non-blocking for this socket
@@ -125,7 +125,7 @@ public class ServerRequest implements Runnable {
         }
 
         // Close it up
-        System.out.println("server.Server waiting for current requests to finish (" + openRequests.size() + ")...");
+        System.out.println("Server waiting for current requests to finish (" + openRequests.size() + ")...");
         receiveSocket.close();
 
         for (Thread t : openRequests) {

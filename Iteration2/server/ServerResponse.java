@@ -8,18 +8,16 @@ import shared.Helper;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.util.Arrays;
-import java.lang.*;
-import java.util.Scanner;
-import java.util.Iterator;
 import java.util.Random;
 import java.io.*;
+
 /**
+ * The thread created by the server, breaks up data for read and write 
+ * request from the client and sends to the client that it is delegated to.
  * 
- * The thread created by the server, breaks up data for read and write request from the client and sends to the error sim thread
- *
+ * @version 2
+ * @author Team6
  */
 public class ServerResponse implements Runnable {
     private static final int DATA_SIZE = 516;
@@ -63,7 +61,6 @@ public class ServerResponse implements Runnable {
      * @param errCode 2 byte Error Code
      * @param address to send to the Error Packet to
      * @param port port to send Packet to
-     * @return void
      */
     public void sendERRPacket(byte[] errCode,  InetAddress address, String tempString, int port) {
         // Check that the Error code is valid before creating
@@ -91,6 +88,7 @@ public class ServerResponse implements Runnable {
 	
 	/**
 	 * Reads file 512 bytes at a time from the file of the clients requests choice
+	 * 
 	 * @throws IllegalOPException 
 	 */
 	public void readFile() throws FileNotFoundException, SecurityException, AddressException, IllegalOPException {
@@ -128,7 +126,6 @@ public class ServerResponse implements Runnable {
 					if((f.length() - f.getFilePointer()) < 512 && (f.length() - f.getFilePointer()) > 0){
 						newsize2 = f.length() - f.getFilePointer();
 						newsize = (int) newsize2;
-						System.out.println("IN here");
 						buffer = new byte[newsize];
 					}
 					int i = f.read(buffer, 0, buffer.length);
@@ -150,12 +147,7 @@ public class ServerResponse implements Runnable {
 		    DatagramPacket responseData = new DatagramPacket(reply.toByteArray(), reply.toByteArray().length,
 		                                                     data.getAddress(), data.getPort());
 		    //print out the data on the sent packet
-		    System.out.println( "server.Server: Sending packet:");
-		    System.out.println("To host: " + responseData.getAddress());
-		    System.out.println("Destination host port: " + responseData.getPort());
-		    int len = responseData.getLength();
-		    System.out.println("Length: " + len);
-		    System.out.println("Containing: " + Arrays.toString(reply.toByteArray()));
+		    Helper.printPacketData(responseData, "Server (" + socket.getLocalPort() + "): Sending packet", ServerSettings.verbose);
 		    
 			//SEND the PACKET
 		    try {
@@ -182,6 +174,7 @@ public class ServerResponse implements Runnable {
 		    }
 		} 
 	}
+	
 	/**
 	 * for write requests, send data packet for the client to wrote 2 512 bytes at a time
 	 * @throws IllegalOPException 
@@ -208,11 +201,7 @@ public class ServerResponse implements Runnable {
 		    DatagramPacket responseData = new DatagramPacket(reply.toByteArray(), reply.toByteArray().length,
 		                                                     data.getAddress(), data.getPort());
 		    //print out the data on the sent packet
-		    System.out.println( "server.Server: Sending packet:");
-		    System.out.println("To host: " + responseData.getAddress());
-		    System.out.println("Destination host port: " + responseData.getPort());
-		    System.out.println("Length: " + responseData.getLength());
-		    System.out.println("Containing: " + Arrays.toString(reply.toByteArray()) + "\n\n");
+		    Helper.printPacketData(responseData, "Server (" + socket.getLocalPort() + "): Sending packet", ServerSettings.verbose);
 		    
 			//SEND the PACKET
 		    try {
@@ -237,11 +226,7 @@ public class ServerResponse implements Runnable {
 	    	
 	    	byte datamin[] = Helper.minimi(receivePacket.getData(), receivePacket.getLength());
 	    	//print out the data on the sent packet
-		    System.out.println( "server.Server: Received packet:");
-		    System.out.println("From host: " + receivePacket.getAddress());
-		    System.out.println("Host port: " + receivePacket.getPort());
-		    System.out.println("Length: " + receivePacket.getLength());
-		    System.out.println("Containing: " + Arrays.toString(datamin) + "\n");
+	    	Helper.printPacketData(receivePacket, "Server (" + socket.getLocalPort() + "): Received Packet", ServerSettings.verbose);
 		    
 		    if(datamin[0] != 0 || datamin[1] != 3){
 		    	throw new IllegalOPException("Not vaild DATA OpCode");
