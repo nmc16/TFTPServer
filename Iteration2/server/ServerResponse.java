@@ -3,6 +3,7 @@ package server;
 import exception.AddressException;
 import exception.ExistsException;
 import exception.IllegalOPException;
+import shared.Helper;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -45,6 +46,7 @@ public class ServerResponse implements Runnable {
 	public ServerResponse(DatagramPacket data) {
 		this.initialPacket = data;
 		this.data = data;
+		
 	    try {
 	    	Random r = new Random();
 	        this.address = data.getAddress();
@@ -54,25 +56,6 @@ public class ServerResponse implements Runnable {
 	        e.printStackTrace();
 	    }
 	}
-	/**
-     * minimizes byte array request
-     * @param msg client request (read or write)
-     * @param len len of msg
-     * @return minimized byte array
-     */
-    public byte[] minimi(byte msg[], int len) {
- 	   int n = 0;
- 	   byte[] newmsg = new byte[len];
- 	   while(n!=len){
- 		   newmsg[n] = msg[n];
- 		   n++;
- 	   }
- 	   return newmsg;
-    }
-    
-    
-    
-    
     
     /**
      * Creates datagram error packet using information passed.
@@ -106,45 +89,6 @@ public class ServerResponse implements Runnable {
 	    }
     }
 	
-	
-	/**
-	 * creates a new text file if it doesn't already exist
-	 * @param file file to check if it exists
-	 */
-	public void createFile(File file) throws ExistsException {
-		try {
-			if(!file.exists()) {
-                // TODO should check the value this returns
-				file.createNewFile();
-			}
-			else{
-				throw new ExistsException("File already exists");
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-	/**
-	 * 
-	 * @return returns the file corresponding to the client request
-	 */
-	public File getFile() {
-		int len = 0;
-		int curr=2;
-		
-		while(initialPacket.getData()[curr] != 0){
-			len++;
-			curr++;
-		}
-		
-		byte file[] = new byte[len];
-		System.arraycopy(initialPacket.getData(), 2, file, 0, len);
-
-		String fileName = (new String(file));
-		File f = new File(fileName);
-		
-		return f;
-	}
 	/**
 	 * Reads file 512 bytes at a time from the file of the clients requests choice
 	 * @throws IllegalOPException 
@@ -170,7 +114,7 @@ public class ServerResponse implements Runnable {
         
 			byte[] buffer = new byte[512];
 			
-			File file = getFile();
+			File file = Helper.getFile(initialPacket);
 
 			if (file.exists()) {
                 if (!file.canRead()) {
@@ -243,8 +187,8 @@ public class ServerResponse implements Runnable {
 	 * @throws IllegalOPException 
 	 */
 	public void writeToFile() throws SecurityException, IllegalOPException, ExistsException {
-        File file = getFile();
-        createFile(file);
+        File file = Helper.getFile(initialPacket);
+        Helper.createFile(file);
 
         if (!file.canWrite()) {
             throw new SecurityException("Access Denied: File " + file.getAbsolutePath() + "does not have" +
@@ -291,7 +235,7 @@ public class ServerResponse implements Runnable {
 	    	}
 	    	
 	    	
-	    	byte datamin[] = minimi(receivePacket.getData(), receivePacket.getLength());
+	    	byte datamin[] = Helper.minimi(receivePacket.getData(), receivePacket.getLength());
 	    	//print out the data on the sent packet
 		    System.out.println( "server.Server: Received packet:");
 		    System.out.println("From host: " + receivePacket.getAddress());

@@ -19,11 +19,9 @@ public class ServerRequest implements Runnable {
     // Initialize the sockets and packets
     private DatagramPacket receivePacket;
     private DatagramSocket receiveSocket;
-    private Helper helper;
     private ArrayList<Thread> openRequests;
 
     public ServerRequest() {
-        helper = new Helper();
         openRequests = new ArrayList<Thread>();
 
         try {
@@ -92,13 +90,13 @@ public class ServerRequest implements Runnable {
 
                 // Minimize the data
                 int len = receivePacket.getLength();
-                mydata = helper.minimi(data, len);
+                mydata = Helper.minimi(data, len);
 
                 // Verify the data
                 if(verify(mydata)){
                     // Print out the data on the received package
                     System.out.println("verified\n");
-                    helper.printPacketData(receivePacket, "Server");
+                    Helper.printPacketData(receivePacket, "Server");
                     Thread clientThread = new Thread(new ServerResponse(receivePacket));
                     clientThread.start();
                     openRequests.add(clientThread);

@@ -3,6 +3,8 @@ package error;
 import java.io.*;
 import java.net.*;
 import java.util.Arrays;
+
+import shared.Helper;
 /**
  *Main error simulator creates a ErroSimThread for each new client request 
  *
@@ -23,23 +25,6 @@ public class ErrorSim {
 			System.exit(1);
 		} 
 	}
-	/**
-     * minimizes byte array request
-     * @param msg client request (read or write)
-     * @param len len of msg
-     * @return minimized byte array
-     */
-    public byte[] minimi(byte msg[], int len) {
- 	   int n = 0;
- 	   byte[] newmsg = new byte[len];
- 	   while(n!=len){
- 		   newmsg[n] = msg[n];
- 		   n++;
- 	   }
- 	   return newmsg;
-    }
-    
-	
 	
 	/**
 	 * Receives new client request and creates a errorSim thread for it
@@ -60,7 +45,7 @@ public class ErrorSim {
 				System.exit(1);
 			}
 			
-			byte datamin[] = minimi(receivePacket.getData(), receivePacket.getLength());
+			byte datamin[] = Helper.minimi(receivePacket.getData(), receivePacket.getLength());
 	
 			// Print out the data within the received packet
 			System.out.println("Intermediate: Packet received:");

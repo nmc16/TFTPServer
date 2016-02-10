@@ -13,6 +13,8 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
 
+import shared.Helper;
+
 /**
  * client.Client program that connects through the error detector to connect to the server
  * and perform file operations.
@@ -42,23 +44,6 @@ public class Client {
             e.printStackTrace();
             System.exit(1);
         }
-    }
-    
-    
-    /**
-     * minimizes byte array request
-     * @param msg client request (read or write)
-     * @param len len of msg
-     * @return minimized byte array
-     */
-    public byte[] minimi(byte msg[], int len) {
- 	   int n = 0;
- 	   byte[] newmsg = new byte[len];
- 	   while(n!=len){
- 		   newmsg[n] = msg[n];
- 		   n++;
- 	   }
- 	   return newmsg;
     }
 
     /**
@@ -146,7 +131,7 @@ public class Client {
         	}
 
         	// Process the received datagram.
-        	byte datamin[] = minimi(receivePacket.getData(), receivePacket.getLength());
+        	byte datamin[] = Helper.minimi(receivePacket.getData(), receivePacket.getLength());
         	System.out.println("client.Client: Packet received:");
         	System.out.println("From host: " + receivePacket.getAddress());
         	System.out.println("Host port: " + receivePacket.getPort());
@@ -195,6 +180,8 @@ public class Client {
                     // No more data to be read
                     break;
                 }
+                
+                
 
                 // Otherwise send an acknowledge to the server
                 response = createPacket(ACK_CODE, byteBlockNumber, receivePacket.getPort());    

@@ -5,6 +5,8 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.util.Arrays;
+
+import shared.Helper;
 /**
  * The Thread for the Error simulator, takes init input from the Error simulator then send the request to the server (cont communication with server thread)
  *
@@ -24,24 +26,7 @@ public class ErrorSimThread implements Runnable {
 			se.printStackTrace();
 			System.exit(1);
 		} 
-	}
-	
-	/**
-     * minimizes byte array request
-     * @param msg client request (read or write)
-     * @param len len of msg
-     * @return minimized byte array
-     */
-    public byte[] minimi(byte msg[], int len) {
- 	   int n = 0;
- 	   byte[] newmsg = new byte[len];
- 	   while(n!=len){
- 		   newmsg[n] = msg[n];
- 		   n++;
- 	   }
- 	   return newmsg;
-    }
-	
+	}	
 	
 	/**
 	 *    
@@ -66,7 +51,7 @@ public class ErrorSimThread implements Runnable {
 	      DatagramPacket sendPacket = new DatagramPacket(packet.getData(), packet.getLength(),
 	                               					     packet.getAddress(), 69);
 	      
-	      byte datamins[] = minimi(sendPacket.getData(), sendPacket.getLength());
+	      byte datamins[] = Helper.minimi(sendPacket.getData(), sendPacket.getLength());
 	      //print out the data to be sent
 	      System.out.println( "Intermediate: Sending packet:");
 	      System.out.println("To host: " + sendPacket.getAddress());
@@ -106,7 +91,7 @@ public class ErrorSimThread implements Runnable {
 		      
 		      serverPort = receivePacket.getPort();
 		      
-		      byte dataminr[] = minimi(receivePacket.getData(), receivePacket.getLength());
+		      byte dataminr[] = Helper.minimi(receivePacket.getData(), receivePacket.getLength());
 		      //print out the data on the received packet
 		      System.out.println("Intermediate: Packet received:");
 		      System.out.println("From host: " + receivePacket.getAddress());
@@ -120,7 +105,7 @@ public class ErrorSimThread implements Runnable {
 		      sendPacket = new DatagramPacket(data, receivePacket.getLength(),
 		              						  receivePacket.getAddress(), clientPort);
 		      
-		      byte datamins2[] = minimi(sendPacket.getData(), sendPacket.getLength());
+		      byte datamins2[] = Helper.minimi(sendPacket.getData(), sendPacket.getLength());
 		      //print out the data to be sent
 		      System.out.println( "Intermediate: Sending packet:");
 		      System.out.println("To host: " + sendPacket.getAddress());
@@ -160,7 +145,7 @@ public class ErrorSimThread implements Runnable {
 		      sendPacket = new DatagramPacket(receivePacket.getData(), receivePacket.getLength(),
 		              						  receivePacket.getAddress(), serverPort);
 		      
-		      byte datamins3[] = minimi(sendPacket.getData(), sendPacket.getLength());
+		      byte datamins3[] = Helper.minimi(sendPacket.getData(), sendPacket.getLength());
 		      //print out the data to be sent
 		      System.out.println("Intermediate: Sending packet:");
 		      System.out.println("To host: " + sendPacket.getAddress());
