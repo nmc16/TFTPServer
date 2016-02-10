@@ -12,10 +12,10 @@ import java.util.Random;
 import java.util.Scanner;
 
 /**
- * Client program that connects through the error detector to connect to the server
+ * client.Client program that connects through the error detector to connect to the server
  * and perform file operations.
  * 
- * Client has a text UI that gives options for file operations on the server.
+ * client.Client has a text UI that gives options for file operations on the server.
  * 
  */
 public class Client {
@@ -90,7 +90,7 @@ public class Client {
     public void sendAndReceive(DatagramPacket sendPacket) {
 
         //Print out the info on the packet
-        System.out.println("Client: Sending packet:");
+        System.out.println("client.Client: Sending packet:");
         System.out.println("To host: " + sendPacket.getAddress());
         System.out.println("Destination host port: " + sendPacket.getPort());
         System.out.println("Length: " + sendPacket.getLength());
@@ -106,7 +106,7 @@ public class Client {
             System.exit(1);
         }
 
-        System.out.println("Client: Packet sent.\n");
+        System.out.println("client.Client: Packet sent.\n");
 
         // Construct a DatagramPacket for receiving packets up
         // to 516 bytes long (the length of the byte array).
@@ -124,7 +124,7 @@ public class Client {
         	}
 
         	// Process the received datagram.
-        	System.out.println("Client: Packet received:");
+        	System.out.println("client.Client: Packet received:");
         	System.out.println("From host: " + receivePacket.getAddress());
         	System.out.println("Host port: " + receivePacket.getPort());
         	System.out.println("Length: " + receivePacket.getLength());
@@ -177,7 +177,7 @@ public class Client {
                 response = createPacket(ACK_CODE, byteBlockNumber, receivePacket.getPort());    
             }
 
-        	System.out.println("Client: Sending packet:");
+        	System.out.println("client.Client: Sending packet:");
             System.out.println("To host: " + response.getAddress());
             System.out.println("Destination host port: " + response.getPort());
             System.out.println("Length: " + response.getLength());
@@ -316,7 +316,7 @@ public class Client {
 
             if (args.length > 0) {
                 if (args[0].toLowerCase().equals("quit")) {
-                    System.out.println("Client shutting down...");
+                    System.out.println("client.Client shutting down...");
                     break;
                 } else {
                     runCommand(args);

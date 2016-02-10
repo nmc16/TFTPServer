@@ -4,6 +4,8 @@
 // string, then echoes the string back to the client.
 // Last edited January 9th, 2016
 
+import server.ServerResponse;
+
 import java.io.*;
 import java.net.*;
 
@@ -94,7 +96,7 @@ public class Server {
           byte data[] = new byte[100];
           byte mydata[];
           receivePacket = new DatagramPacket(data, data.length);
-          System.out.println("Server: Waiting for Packet.\n");
+          System.out.println("server.Server: Waiting for Packet.\n");
     
           // Block until a datagram packet is received from receiveSocket.
           try {        
@@ -108,7 +110,7 @@ public class Server {
           }
     
           // Print out the data on the recieved package
-          System.out.println("Server: Packet received:");
+          System.out.println("server.Server: Packet received:");
           System.out.println("From host: " + receivePacket.getAddress());
           System.out.println("Host port: " + receivePacket.getPort());
           int len = receivePacket.getLength();
@@ -133,7 +135,7 @@ public class Server {
               throw new RuntimeException("Invalid data request");
           }
     
-          System.out.println("Server: packet sent");
+          System.out.println("server.Server: packet sent");
       }
       //close it up
       receiveSocket.close();
