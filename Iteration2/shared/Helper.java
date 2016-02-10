@@ -19,7 +19,7 @@ public class Helper {
 	private Helper() {}
 
     /**
-     * Change a byte array into a string of byte numbers
+     * Change a byte array into a string of byte numbers.
      *
      * @param msg byte array to change
      * @return String of byte numbers
@@ -37,10 +37,11 @@ public class Helper {
     }
 
     /**
-     * Minimizes byte array from a request
+     * Minimizes byte array from a request and removes all the null data entries (zeros)
+     * at the end of the data request.
      *
      * @param msg client request (read or write)
-     * @param len len of msg
+     * @param len Length of msg
      * @return minimized byte array
      */
     public static byte[] minimi(byte msg[], int len) {
@@ -56,8 +57,11 @@ public class Helper {
     }
 
     /**
-	 * creates a new text file if it doesn't already exist
+	 * Creates a new text file if it doesn't already exist. If the file already exists
+	 * an exception is thrown.
+	 * 
 	 * @param file file to check if it exists
+	 * @throws ExistsException Thrown if file already exists
 	 */
 	public static void createFile(File file) throws ExistsException {
 		try {
@@ -74,31 +78,44 @@ public class Helper {
 	}
 	
 	/**
+	 * Retrieves the file from the data packet and parses it to get the 
+	 * file name.
 	 * 
-	 * @return returns the file corresponding to the client request
+	 * @return Returns the file corresponding to the client request
 	 */
     public static File getFile(DatagramPacket initialPacket) {
 		int len = 0;
 		int curr=2;
 		
+		// Loop until the first zero is reached
 		while(initialPacket.getData()[curr] != 0){
 			len++;
 			curr++;
 		}
 		
+		// Copy the filename from the array
 		byte file[] = new byte[len];
 		System.arraycopy(initialPacket.getData(), 2, file, 0, len);
 
+		// Create the file and return
 		String fileName = (new String(file));
 		File f = new File(fileName);
 		
 		return f;
 	}
 	
-    public static void printPacketData(DatagramPacket packet, String clazz) {
+    /**
+     * Prints the packet received or sent data contents to the screen and 
+     * the console input line after. Only prints if {@link ServerSettings}
+     * verbose flag is set.
+     * 
+     * @param packet DatagramPacket to print data of
+     * @param header Header to print at top to show how is displaying data 
+     */
+    public static void printPacketData(DatagramPacket packet, String header) {
         // Print out the data on the received package if verbose mode on
         if (ServerSettings.verbose) {
-            System.out.println("\n" + clazz + " Packet received:");
+            System.out.println("\n" + header + ": ");
             System.out.println("From host: " + packet.getAddress());
             System.out.println("Host port: " + packet.getPort());
             System.out.println("Length: " + packet.getLength());

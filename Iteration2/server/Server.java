@@ -67,6 +67,7 @@ public class Server {
         }
 
         System.out.println("server.Server shutting down...");
+        reader.close();
         System.exit(0);
     }
 
