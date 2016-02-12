@@ -5,6 +5,8 @@ import server.ServerSettings;
 import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import exception.ExistsException;
 
@@ -131,5 +133,27 @@ public class Helper {
 
             System.out.print("ENTER COMMAND > ");
         }
+    }
+    
+    /**
+     * Method that will create the sub directories in a path from the running directory
+     * of the program. Strips the file name away from the path and creates the rest of the path
+     * as directories.
+     * 
+     * @param path Path to save file under the root where the project is being run
+     */
+    public static void createSubDirectories(String path) {
+    	// Check if the path contains folder delimiters
+    	if (path.contains("\\") || path.contains("//")) {
+    		// Remove the filename from the directories
+    		Path p = Paths.get(path);
+    		String folders = path.replace(p.getFileName().toString(), "");
+    		
+    		// Create the folders if they don't already exist
+    		File file = new File(folders);
+    		if (!file.exists()) {
+    			file.mkdirs();
+    		}
+    	}
     }
 }

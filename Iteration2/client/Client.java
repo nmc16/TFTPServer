@@ -5,12 +5,15 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.io.RandomAccessFile;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
@@ -49,6 +52,7 @@ public class Client {
     private InetAddress address, receiveAddress;
     private int port;
     private String location, mode, saveLocation;
+    private Path folderPath;
 
 
     public Client() {
@@ -57,6 +61,7 @@ public class Client {
             Random r = new Random();
             this.address = InetAddress.getLocalHost();
             sendReceiveSocket = new DatagramSocket(r.nextInt(65553));
+            folderPath = Paths.get("client_files");
         } catch (SocketException se) { 
             se.printStackTrace();
             System.exit(1);
@@ -169,6 +174,14 @@ public class Client {
 	 */
     public void sendAndReceive(DatagramPacket sendPacket) throws IllegalOPException, AddressException {
 
+    	// Check that the files directory exists to store the read files into
+        if (Files.notExists(folderPath)) {
+        	if (!folderPath.toFile().mkdir()) {
+        		System.out.println("Cannot make directory!");
+        		System.exit(1);
+        	}
+        }
+        
         //Print out the info on the packet
     	Helper.printPacketData(sendPacket, "Client: Sending packet", verbose);
        
@@ -244,9 +257,8 @@ public class Client {
                 byte[] transferred = Arrays.copyOfRange(receivePacket.getData(), 4, 516);
 
                 byte[] minimized = Helper.minimi(transferred, transferred.length);
-                
-                writeFile(new String(minimized), new File(saveLocation));
-                
+                writeFile(new String(minimized), new File(folderPath.toString() + "\\" + saveLocation));
+                                
                 // Check if there is more data to be read or not
                 if (transferred[transferred.length - 1] == 0) {
                     // No more data to be read
@@ -286,9 +298,10 @@ public class Client {
      */
     public void printMenu() {
         System.out.println(" Options:");
-        System.out.println("    read [filename] [file location] [mode] - Reads the file from the server under filename");
-        System.out.println("    write [filename] [file location] [mode] - Writes file at location to");
-        System.out.println("                                               filename on server.");
+        System.out.println("    read [filename] [file location] [mode] - Reads the file from the server under filename and saves");
+        System.out.println("                                             the file under the path specified under the root where the");
+        System.out.println("                                             project is being run under directory \"client_files\".");
+        System.out.println("    write [filename] [file location] [mode] - Writes file at location to filename on server.");
         System.out.println("    verbose [true|false] - Changes server display mode to verbose or silent mode.");
         System.out.println("    help - Prints options screen.");
         System.out.println("    quit - Quits the client program.");
@@ -374,8 +387,10 @@ public class Client {
             }
             DatagramPacket packet = createPacket(READ_CODE, args[1], args[3]);
             saveLocation = args[2];
-    		File file = new File(saveLocation);
+    		File file = new File(folderPath.toString() + "\\" + saveLocation);
             try {
+            	// Check if there are slashes, which indicates directories
+                Helper.createSubDirectories(folderPath.toString() + "\\" + saveLocation);
     			Helper.createFile(file);
     		} catch (ExistsException e) {
     			e.printStackTrace();
