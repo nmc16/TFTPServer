@@ -1,6 +1,7 @@
 package server;
 
 import exception.AddressException;
+import exception.EPException;
 import exception.ExistsException;
 import exception.IllegalOPException;
 import shared.Helper;
@@ -91,7 +92,7 @@ public class ServerResponse implements Runnable {
 	 * 
 	 * @throws IllegalOPException 
 	 */
-	public void readFile() throws FileNotFoundException, SecurityException, AddressException, IllegalOPException {
+	public void readFile() throws FileNotFoundException, SecurityException, AddressException, IllegalOPException, EPException {
 		byte[] block = {0, 0};
 		boolean flag = false;
 		int newsize;
@@ -165,12 +166,19 @@ public class ServerResponse implements Runnable {
 		    	} catch (IOException e) {
 		    		e.printStackTrace();
 		    	}
+		    	
+		    	if (data.getData()[0] == 0 && data.getData()[1] == 5) {
+		    		throw new EPException("Error packet received from Client!", receivePacket);
+		    	}
 		    	if(!data.getAddress().equals(this.address)){
 		    		throw new AddressException("unknown Transfer Id");
 		    	}
 		    	if(data.getData()[0] != 0 || data.getData()[1] != 4){
 			    	throw new IllegalOPException("Not vaild ACK OpCode");
 			    }
+		    	if(data.getPort() != this.port){
+		    		throw new AddressException("unknown Port");
+		    	}
 		    }
 		} 
 	}
@@ -179,7 +187,7 @@ public class ServerResponse implements Runnable {
 	 * for write requests, send data packet for the client to wrote 2 512 bytes at a time
 	 * @throws IllegalOPException 
 	 */
-	public void writeToFile() throws SecurityException, IllegalOPException, ExistsException {
+	public void writeToFile() throws SecurityException, IllegalOPException, ExistsException, EPException, AddressException {
         File file = Helper.getFile(initialPacket);
         Helper.createFile(file);
 
@@ -228,9 +236,20 @@ public class ServerResponse implements Runnable {
 	    	//print out the data on the sent packet
 	    	Helper.printPacketData(receivePacket, "Server (" + socket.getLocalPort() + "): Received Packet", ServerSettings.verbose);
 		    
-		    if(datamin[0] != 0 || datamin[1] != 3){
+		    if (datamin[0] == 0 && datamin[1] == 5) {
+		    	throw new EPException("Error packet received from Client!", receivePacket);
+			} else if(datamin[0] != 0 || datamin[1] != 3){
 		    	throw new IllegalOPException("Not vaild DATA OpCode");
 		    }
+		    if (data.getData()[0] == 0 && data.getData()[1] == 5) {
+	    		throw new EPException("Error packet received from Client!", receivePacket);
+	    	}
+	    	if(!data.getAddress().equals(this.address)){
+	    		throw new AddressException("unknown Transfer Id");
+	    	}
+	    	if(data.getPort() != this.port){
+	    		throw new AddressException("unknown Port");
+	    	}
 		    
 	    	block[0] = datamin[2];
 	    	block[1] = datamin[3];
@@ -245,6 +264,7 @@ public class ServerResponse implements Runnable {
 	    	try {
 				FileWriter fw = new FileWriter(file, true);
 				fw.write(contents);
+				
 				fw.close();
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -266,6 +286,8 @@ public class ServerResponse implements Runnable {
 	    		sendERRPacket(EC4, address, e.getMessage(), port);
 	    	} catch (AddressException e) {
 	    		sendERRPacket(EC5, address, e.getMessage(), port); 
+	    	} catch (EPException e) {
+	    		Helper.printPacketData(e.getPacket(), "Server (" + socket.getLocalPort() + "): Shutting down", true);
 	    	}
 	    } else {
 	    	try {
@@ -274,8 +296,12 @@ public class ServerResponse implements Runnable {
 	    		sendERRPacket(EC2, address, e.getMessage(), port);
 	    	} catch (IllegalOPException e) {
 	    		sendERRPacket(EC4, address, e.getMessage(), port);
+	    	} catch (AddressException e) {
+	    		sendERRPacket(EC5, address, e.getMessage(), port); 
 	    	} catch (ExistsException e) {
                 sendERRPacket(EC6, address, e.getMessage(), port);
+            } catch (EPException e) {
+            	Helper.printPacketData(e.getPacket(), "Server (" + socket.getLocalPort() + "): Shutting down", true);
             }
 	    }
 	    

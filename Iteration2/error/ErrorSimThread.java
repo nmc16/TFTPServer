@@ -22,6 +22,7 @@ public class ErrorSimThread implements Runnable {
 	private DatagramSocket sendReceiveSocket;
 	private int clientPort;
 	private int serverPort;
+	private boolean pass = false;
 	
 	public ErrorSimThread(DatagramPacket packet) {
 		this.packet = packet;
@@ -35,29 +36,25 @@ public class ErrorSimThread implements Runnable {
 	}
 	
 	
-	public static DatagramPacket BringError(byte msg[], String ErrCode, DatagramPacket Received, int porter) {
+	public DatagramPacket BringError(byte msg[], String ErrCode, DatagramPacket Received, int porter) {
         byte newmsg[] = msg;
         InetAddress address = Received.getAddress();
         int length = Received.getLength();
         int port = porter;
         
-        try{
-        	address = InetAddress.getByName("127.0.0.1");
-        } catch (UnknownHostException e) {
-            System.out.println("Could not stop requests properly: " + e.getMessage());
-            e.printStackTrace();
-        }
-        
         
         if(ErrCode.equals("01")){
         	//mess with data byte 1
         	newmsg[1] = 6;
+        	pass = true;
         } else if(ErrCode.equals("02")){
         	//mess with data byte 0
         	newmsg[0] = 6;
+        	pass = true;
         } else if(ErrCode.equals("03")){
         	//mess with port
         	port = 1;
+        	pass = true;
         } else if(ErrCode.equals("04")){
         	//Wrong Address
         	try{
@@ -66,6 +63,10 @@ public class ErrorSimThread implements Runnable {
                 System.out.println("Could not stop requests properly: " + e.getMessage());
                 e.printStackTrace();
             }
+        	pass = true;
+        } else if(ErrCode.equals("11")){
+        	//pass shit
+        	pass = true;
         }
         return new DatagramPacket(newmsg, length, address, port);
     }
@@ -77,6 +78,7 @@ public class ErrorSimThread implements Runnable {
 		System.out.print("\"02\": Changes the second byte in the OpCode\n");
 		System.out.print("\"03\": Change to an invalid port number\n");
 		System.out.print("\"04\": Change to a different Address\n");
+		System.out.print("\"11\": Always normal function\n");
 	    System.out.print("> ");
 	}
 	
@@ -158,8 +160,11 @@ public class ErrorSimThread implements Runnable {
 		      
 		      
 		      //Decide on the error sim
-		      PrintErrorList();
-	          input = reader.nextLine();
+		      input = "00";
+		      if(!pass){
+		    	  PrintErrorList();
+		    	  input = reader.nextLine();
+		      }
 		
 		      
 		      //create a new packet to send
@@ -203,9 +208,11 @@ public class ErrorSimThread implements Runnable {
 		      
 		      
 		    //Decide on the error sim
-		      PrintErrorList();
-	          input = reader.nextLine();
-		
+		      input = "00";
+		      if(!pass){
+		    	  PrintErrorList();
+		    	  input = reader.nextLine();
+		      }
 		      
 		      //create a new packet to send
 		      sendPacket = BringError(data, input, receivePacket, serverPort);

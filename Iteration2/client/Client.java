@@ -15,7 +15,9 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
 
+import exception.AddressException;
 import exception.ExistsException;
+import exception.IllegalOPException;
 import shared.Helper;
 
 /**
@@ -31,10 +33,21 @@ public class Client {
     private static final byte READ_CODE[] = {0, 1};
     private static final byte WRITE_CODE[] = {0, 2};
     private static final byte DATA_CODE[] = {0, 3};
+    private static final byte ERR_CODE[] = {0, 5};
     private static final byte ACK_CODE[] = {0, 4};
+    private static final byte EC0[] = {0, 0};
+    private static final byte EC1[] = {0, 1};
+    private static final byte EC2[] = {0, 2};
+    private static final byte EC3[] = {0, 3};
+    private static final byte EC4[] = {0, 4};
+    private static final byte EC5[] = {0, 5};
+    private static final byte EC6[] = {0, 6};
+    private static final byte EC7[] = {0, 7};
     private static final int HOST_PORT = 68;
     private static boolean verbose = false;
-    private InetAddress address;
+    private boolean running = true;
+    private InetAddress address, receiveAddress;
+    private int port;
     private String location, mode, saveLocation;
 
 
@@ -42,7 +55,7 @@ public class Client {
         try {
         	// Randomize a port number and create the socket
             Random r = new Random();
-            address = InetAddress.getLocalHost();
+            this.address = InetAddress.getLocalHost();
             sendReceiveSocket = new DatagramSocket(r.nextInt(65553));
         } catch (SocketException se) { 
             se.printStackTrace();
@@ -51,6 +64,37 @@ public class Client {
             e.printStackTrace();
             System.exit(1);
         }
+    }
+    
+    /**
+     * Creates datagram error packet using information passed.
+     * 
+     * @param errCode 2 byte Error Code
+     * @param address to send to the Error Packet to
+     * @param port port to send Packet to
+     */
+    public void sendERRPacket(byte[] errCode,  InetAddress address, String tempString, int port) {
+        // Check that the Error code is valid before creating
+        if (errCode.length != 2) {
+            throw new IllegalArgumentException("Op code must be length 2! Found length " + errCode.length + ".");
+        }
+
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+        buffer.write(0);
+        buffer.write(5);
+        buffer.write(errCode[0]);
+        buffer.write(errCode[1]);
+        buffer.write(tempString.getBytes(), 0, tempString.length());
+        buffer.write(0);
+
+        DatagramPacket ErrPack = new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, port);
+        System.out.println("Error code " + errCode[1] + " has occurred");
+        try {
+	        sendReceiveSocket.send(ErrPack);
+	    } catch (IOException e) {
+	        e.printStackTrace();
+	    }
     }
 
     /**
@@ -123,7 +167,7 @@ public class Client {
 	 * 
 	 * @param sendPacket Packet created for the initial request.
 	 */
-    public void sendAndReceive(DatagramPacket sendPacket) {
+    public void sendAndReceive(DatagramPacket sendPacket) throws IllegalOPException, AddressException {
 
         //Print out the info on the packet
     	Helper.printPacketData(sendPacket, "Client: Sending packet", verbose);
@@ -148,6 +192,16 @@ public class Client {
         	} catch(IOException e) {
         		e.printStackTrace();
         		System.exit(1);
+        	}
+        	
+        	
+        	if (receiveAddress == null) {
+        		receiveAddress = receivePacket.getAddress();
+        	}
+        	
+        	if(!receiveAddress.equals(receivePacket.getAddress())){
+        		port = receivePacket.getPort();
+        		throw new AddressException("This is not the address: " + receivePacket.getAddress());
         	}
 
         	// Process the received datagram.
@@ -201,6 +255,14 @@ public class Client {
 
                 // Otherwise send an acknowledge to the server
                 response = createPacket(ACK_CODE, byteBlockNumber, receivePacket.getPort());    
+            } else if (Arrays.equals(opCode, ERR_CODE)) {
+            	// Quit the program and display message
+            	Helper.printPacketData(receivePacket, "Client: Error Packet Receieved", verbose);
+            	running = false;
+            	return;
+            } else {
+            	port = receivePacket.getPort();
+            	throw new IllegalOPException("Illegal opCode");
             }
 
             // TODO this needs to be refactored
@@ -216,6 +278,7 @@ public class Client {
                 System.exit(1);
             }
         }
+        receiveAddress = null;
    }
 
     /**
@@ -297,7 +360,7 @@ public class Client {
      * 
      * @param args Arguments passed from UI
      */
-    private void runCommand(String args[]) {
+    private void runCommand(String args[]) throws IllegalOPException, AddressException {
 
         if (args[0].toLowerCase().equals("help")) {
             printMenu();
@@ -317,7 +380,9 @@ public class Client {
     		} catch (ExistsException e) {
     			e.printStackTrace();
     		}
+            
             sendAndReceive(packet);
+            
         } else if (args[0].toLowerCase().equals("write")) {
             if (args.length != 4) {
                 System.out.println("Instruction invalid length!");
@@ -331,6 +396,7 @@ public class Client {
                 return;
         	}
         	verbose = true;
+        	System.out.println("Verbose mode set!");
         }
         else {
             System.out.println("Invalid command entered!");
@@ -339,14 +405,15 @@ public class Client {
 
     /**
      * Runs the UI and runs the commands entered
+     * @throws IllegalOPException 
      */
     public void run() {
         Scanner reader = new Scanner(System.in);
         System.out.println("Starting client...");
         printMenu();
-        System.out.print("ENTER COMMAND > ");
         
-        while(true) {
+        while(running) {
+        	System.out.print("\nENTER COMMAND > ");
             // Read the input from the user
             String input = reader.nextLine();
 
@@ -355,15 +422,24 @@ public class Client {
 
             if (args.length > 0) {
                 if (args[0].toLowerCase().equals("quit")) {
-                    System.out.println("Client shutting down...");
                     break;
                 } else {
-                    runCommand(args);
+                    try{
+                    	runCommand(args);
+                    } catch(IllegalOPException e){
+                    	sendERRPacket(EC4, address, e.getMessage(), port);
+                    } catch (AddressException e) {
+                		sendERRPacket(EC5, address, e.getMessage(), port); 
+                		e.printStackTrace();
+                	}
                 }
             } else {
                 System.out.println("Instruction invalid length!");
             }
         }
+        
+        System.out.println("Client shutting down...");
+        
         // We're finished, so close the socket.
         sendReceiveSocket.close();
         reader.close();
