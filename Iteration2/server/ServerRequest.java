@@ -8,6 +8,7 @@ import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * Thread that receives incoming requests from clients and delegates them to individual
@@ -74,7 +75,21 @@ public class ServerRequest implements Runnable {
             }
             m++;
         }
-
+        
+        int index = 0;
+        for (int i = msg.length - 2; i > 0; i--) {
+        	index = i;
+        	if (msg[i] == 0) {
+        		break;
+        	}
+        }
+        
+        String s = new String(Arrays.copyOfRange(msg, index, msg.length - 1));
+        s = s.trim();
+        if (!s.equals("octet") && !s.equals("netascii") && !s.equals("wait")) {
+        	return false;
+        }
+        
         return q == 2;
     }
 
@@ -104,7 +119,11 @@ public class ServerRequest implements Runnable {
                     openRequests.add(clientThread);
                 } else{
                     //terminate the program
-                    throw new RuntimeException("Invalid data request");
+                    System.out.println("\nReceived invalid request! Not allowing request to be performed.");
+                    Helper.printPacketData(receivePacket, "Server Request Thread: Invalid Request", true);
+                    ServerResponse response = new ServerResponse(receivePacket);
+                    byte[] errcode = {0, 4};
+                    response.sendERRPacket(errcode, receivePacket.getAddress(), "Invalid data request", receivePacket.getPort());
                 }
 
             } catch (SocketTimeoutException e) {

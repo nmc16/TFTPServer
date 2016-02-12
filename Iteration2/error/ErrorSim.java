@@ -6,8 +6,10 @@ import java.util.Arrays;
 
 import shared.Helper;
 /**
- *Main error simulator creates a ErroSimThread for each new client request 
+ * Main error simulator creates a ErroSimThread for each new client request 
  *
+ * @version 2
+ * @author Team6
  */
 public class ErrorSim {
 

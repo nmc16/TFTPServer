@@ -50,7 +50,7 @@ public class ServerResponse implements Runnable {
 	    	Random r = new Random();
 	        this.address = data.getAddress();
 	        this.port = data.getPort();
-	        socket = new DatagramSocket(r.nextInt(65553));
+	        socket = new DatagramSocket(r.nextInt(65500));
 	    } catch (IOException e) {
 	        e.printStackTrace();
 	    }
@@ -170,14 +170,11 @@ public class ServerResponse implements Runnable {
 		    	if (data.getData()[0] == 0 && data.getData()[1] == 5) {
 		    		throw new EPException("Error packet received from Client!", receivePacket);
 		    	}
-		    	if(!data.getAddress().equals(this.address)){
-		    		throw new AddressException("unknown Transfer Id");
-		    	}
 		    	if(data.getData()[0] != 0 || data.getData()[1] != 4){
 			    	throw new IllegalOPException("Not vaild ACK OpCode");
 			    }
-		    	if(data.getPort() != this.port){
-		    		throw new AddressException("unknown Port");
+		    	if(data.getPort() != this.port || !data.getAddress().equals(this.address)){
+		    		throw new AddressException("Unknown TID/Address");
 		    	}
 		    }
 		} 
@@ -287,7 +284,7 @@ public class ServerResponse implements Runnable {
 	    	} catch (AddressException e) {
 	    		sendERRPacket(EC5, address, e.getMessage(), port); 
 	    	} catch (EPException e) {
-	    		Helper.printPacketData(e.getPacket(), "Server (" + socket.getLocalPort() + "): Shutting down", true);
+	    		Helper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() + "): Received Error Packet, Shutting down", true);
 	    	}
 	    } else {
 	    	try {
@@ -301,7 +298,7 @@ public class ServerResponse implements Runnable {
 	    	} catch (ExistsException e) {
                 sendERRPacket(EC6, address, e.getMessage(), port);
             } catch (EPException e) {
-            	Helper.printPacketData(e.getPacket(), "Server (" + socket.getLocalPort() + "): Shutting down", true);
+            	Helper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() + "): Received Error Packet Shutting down", true);
             }
 	    }
 	    

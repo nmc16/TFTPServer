@@ -7,6 +7,7 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.Random;
 import java.util.Scanner;
 
 import shared.Helper;
@@ -20,15 +21,19 @@ import shared.Helper;
 public class ErrorSimThread implements Runnable {
 	private DatagramPacket packet;
 	private DatagramSocket sendReceiveSocket;
+	private DatagramSocket errorSendSocket;
 	private int clientPort;
 	private int serverPort;
-	private boolean pass = false;
+	private boolean pass = false, errSocket = false;
+	private int counter = 0;
 	
 	public ErrorSimThread(DatagramPacket packet) {
 		this.packet = packet;
 		this.clientPort = packet.getPort();
 		try {
 			sendReceiveSocket = new DatagramSocket();
+			errorSendSocket = new DatagramSocket();
+
 		} catch (SocketException se) {
 			se.printStackTrace();
 			System.exit(1);
@@ -53,16 +58,15 @@ public class ErrorSimThread implements Runnable {
         	pass = true;
         } else if(ErrCode.equals("03")){
         	//mess with port
-        	port = 1;
+        	errSocket = true;
         	pass = true;
         } else if(ErrCode.equals("04")){
         	//Wrong Address
-        	try{
-            	address = InetAddress.getByName("127.0.0.1");
-            } catch (UnknownHostException e) {
-                System.out.println("Could not stop requests properly: " + e.getMessage());
-                e.printStackTrace();
-            }
+        	errSocket = true;
+        	pass = true;
+        } else if(ErrCode.equals("05")){
+        	// Edit the last bit of the mode to make it invalid
+        	newmsg[length - 2] = 122;
         	pass = true;
         } else if(ErrCode.equals("11")){
         	//pass shit
@@ -76,12 +80,33 @@ public class ErrorSimThread implements Runnable {
 		System.out.print("\"00\": Normal Operations\n");
 		System.out.print("\"01\": Changes the first byte in the OpCode\n");
 		System.out.print("\"02\": Changes the second byte in the OpCode\n");
-		System.out.print("\"03\": Change to an invalid port number\n");
-		System.out.print("\"04\": Change to a different Address\n");
+		
+		if (counter > 1) {
+		    System.out.print("\"03\": Change to an invalid port number\n");
+		    System.out.print("\"04\": Change to a different Address\n");
+		} else if (counter == 0) {
+			System.out.print("\"05\": Change the mode\n");
+		}
+		
 		System.out.print("\"11\": Always normal function\n");
 	    System.out.print("> ");
+	    counter++;
 	}
 	
+	
+	public void sendUsingSocket(DatagramPacket packet) {
+		try {
+			if (errSocket) {
+				errSocket = false;
+				errorSendSocket.send(packet);
+			} else {
+	            sendReceiveSocket.send(packet);
+			}
+	      } catch(IOException e) {
+	         e.printStackTrace();
+	         System.exit(1);
+	      }
+	}
 	
 	
 	/**
@@ -105,9 +130,16 @@ public class ErrorSimThread implements Runnable {
 		  String input;
 	      byte data[] = new byte[516];
 	      
-	      //create the packet
-	      DatagramPacket sendPacket = new DatagramPacket(packet.getData(), packet.getLength(),
-	                               					     packet.getAddress(), 69);
+	      //Decide on the error sim
+	      input = "00";
+	      if(!pass){
+	    	  PrintErrorList();
+	    	  input = reader.nextLine();
+	      }
+	
+	      
+	      //create a new packet to send
+	      DatagramPacket sendPacket = BringError(packet.getData(), input, packet, 69);
 	      
 	      byte datamins[] = Helper.minimi(sendPacket.getData(), sendPacket.getLength());
 	      //print out the data to be sent
@@ -120,12 +152,7 @@ public class ErrorSimThread implements Runnable {
 	      System.out.println("In bytes " + Arrays.toString(datamins) + "\n");
 	      
 	      //Send the data
-	      try {
-	    	  sendReceiveSocket.send(sendPacket);
-	      } catch (IOException e) {
-	    	  e.printStackTrace();
-	    	  System.exit(1);
-	      }
+	      sendUsingSocket(sendPacket);
 	
 	      System.out.println("Intermediate: packet sent");
 	      boolean flag = false;
@@ -180,12 +207,7 @@ public class ErrorSimThread implements Runnable {
 		      System.out.println("In bytes " + Arrays.toString(datamins2) + "\n");
 		      
 		      // Send the datagram packet to the client via the send socket. 
-		      try {
-		    	  sendReceiveSocket.send(sendPacket);
-		      } catch (IOException e) {
-		    	  e.printStackTrace();
-		    	  System.exit(1);
-		      }
+		      sendUsingSocket(sendPacket);
 		      
 		      if (flag) {
 		    	  break;
@@ -227,12 +249,7 @@ public class ErrorSimThread implements Runnable {
 		      System.out.println("In bytes " + Arrays.toString(datamins3) + "\n");
 		      
 		      // Send the datagram packet to the client via the send socket. 
-		      try {
-		    	  sendReceiveSocket.send(sendPacket);
-		      } catch (IOException e) {
-		    	  e.printStackTrace();
-		    	  System.exit(1);
-		      }
+		      sendUsingSocket(sendPacket);
 	      }
 	      
 

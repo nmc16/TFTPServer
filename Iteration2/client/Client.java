@@ -50,7 +50,7 @@ public class Client {
     private static boolean verbose = false;
     private boolean running = true;
     private InetAddress address, receiveAddress;
-    private int port;
+    private int port, receivePort = -1;
     private String location, mode, saveLocation;
     private Path folderPath;
 
@@ -94,7 +94,7 @@ public class Client {
         buffer.write(0);
 
         DatagramPacket ErrPack = new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, port);
-        System.out.println("Error code " + errCode[1] + " has occurred");
+        System.out.println("Error code " + errCode[1] + " has occurred. Closing the current request...");
         try {
 	        sendReceiveSocket.send(ErrPack);
 	    } catch (IOException e) {
@@ -212,9 +212,13 @@ public class Client {
         		receiveAddress = receivePacket.getAddress();
         	}
         	
-        	if(!receiveAddress.equals(receivePacket.getAddress())){
-        		port = receivePacket.getPort();
-        		throw new AddressException("This is not the address: " + receivePacket.getAddress());
+        	if (receivePort == -1) {
+        		receivePort = receivePacket.getPort();
+        	}
+        	
+        	if(!receiveAddress.equals(receivePacket.getAddress()) || receivePort != receivePacket.getPort()){
+        		Helper.printPacketData(receivePacket, "Client Ecountered Error Packet", true);
+        		throw new AddressException("The address or TID was not correct during transfer: " + receivePacket.getAddress() + ", " + receivePacket.getPort());
         	}
 
         	// Process the received datagram.
@@ -269,11 +273,11 @@ public class Client {
                 response = createPacket(ACK_CODE, byteBlockNumber, receivePacket.getPort());    
             } else if (Arrays.equals(opCode, ERR_CODE)) {
             	// Quit the program and display message
-            	Helper.printPacketData(receivePacket, "Client: Error Packet Receieved", verbose);
+            	Helper.printPacketData(receivePacket, "Client: Error Packet Receieved", true);
             	running = false;
             	return;
             } else {
-            	port = receivePacket.getPort();
+            	Helper.printPacketData(receivePacket, "Client Ecountered Error Packet", true);
             	throw new IllegalOPException("Illegal opCode");
             }
 
@@ -429,6 +433,10 @@ public class Client {
         
         while(running) {
         	System.out.print("\nENTER COMMAND > ");
+        	
+        	receiveAddress = null;
+        	receivePort = -1;
+        	
             // Read the input from the user
             String input = reader.nextLine();
 
@@ -442,10 +450,10 @@ public class Client {
                     try{
                     	runCommand(args);
                     } catch(IllegalOPException e){
-                    	sendERRPacket(EC4, address, e.getMessage(), port);
+                    	sendERRPacket(EC4, address, e.getMessage(), receivePort);
+                    	
                     } catch (AddressException e) {
-                		sendERRPacket(EC5, address, e.getMessage(), port); 
-                		e.printStackTrace();
+                		sendERRPacket(EC5, address, e.getMessage(), receivePort); 
                 	}
                 }
             } else {
@@ -453,7 +461,7 @@ public class Client {
             }
         }
         
-        System.out.println("Client shutting down...");
+        System.out.println("\nClient shutting down...");
         
         // We're finished, so close the socket.
         sendReceiveSocket.close();
