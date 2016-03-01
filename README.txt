@@ -75,3 +75,9 @@ Testing:
     	6) Client sends read request -> Server Responds -> ErrorSim edits the OP code -> client closes and sends error packet to server -> 
     	   Server closes request thread.
     	
+    Breakdown:
+    	Kevin: Coding
+        Nic: Coding
+        Abbas: UMC, Testing, Timing Diagrams
+        Niko: UML, Testing, Timing Diagrams
+    	
