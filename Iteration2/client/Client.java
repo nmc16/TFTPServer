@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
 
+import java.net.SocketTimeoutException;
 import exception.AddressException;
 import exception.ExistsException;
 import exception.IllegalOPException;
@@ -54,7 +55,8 @@ public class Client {
     private String location, mode, saveLocation;
     private Path folderPath;
 
-
+	//TODO re add in timeout set
+    
     public Client() {
         try {
         	// Randomize a port number and create the socket
@@ -188,6 +190,7 @@ public class Client {
         // Send the datagram packet to the intermediate via the send/receive socket.
         try {
             sendReceiveSocket.send(sendPacket);
+            //sendReceiveSocket.setSoTimeout(10000);
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
@@ -198,13 +201,31 @@ public class Client {
         while (true) {
         	byte data[] = new byte[516];
         	receivePacket = new DatagramPacket(data, data.length);
-
-        	try {
-        		// Block until a datagram is received via sendReceiveSocket.
-        		sendReceiveSocket.receive(receivePacket);
-        	} catch(IOException e) {
-        		e.printStackTrace();
-        		System.exit(1);
+        	
+        	boolean cont = false;
+        	while(!cont){
+        		cont = true;
+	        	try {
+	        		// Block until a datagram is received via sendReceiveSocket.
+	        		sendReceiveSocket.receive(receivePacket);
+	        		//TODO if the block or ack # doesn't match ignore and wait for packet still ie cont =false
+	        		
+	        	}catch(SocketTimeoutException e){
+			    	e.printStackTrace();
+			    	try {
+			            sendReceiveSocket.send(sendPacket);
+			        } catch (IOException e1) {
+			            e1.printStackTrace();
+			            System.exit(1);
+			        }
+			    	cont = false;
+			    	
+			    	
+			    } catch(IOException e) {
+	        		e.printStackTrace();
+	        		System.exit(1);
+	        	}
+	        	
         	}
         	
         	

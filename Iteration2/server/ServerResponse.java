@@ -9,6 +9,7 @@ import shared.Helper;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.util.Arrays;
 import java.util.Random;
 import java.io.*;
@@ -39,8 +40,14 @@ public class ServerResponse implements Runnable {
 	private DatagramPacket data;
 	private DatagramSocket socket;
 	
+	private int timeout = 2000;
+	
 	private InetAddress address;
 	private int port;
+	private int currDataBlock, currACKBlock;
+	
+	//TODO re add in timeout set
+	
 	
 	public ServerResponse(DatagramPacket data) {
 		this.initialPacket = data;
@@ -51,6 +58,7 @@ public class ServerResponse implements Runnable {
 	        this.address = data.getAddress();
 	        this.port = data.getPort();
 	        socket = new DatagramSocket(r.nextInt(65500));
+	        
 	    } catch (IOException e) {
 	        e.printStackTrace();
 	    }
@@ -153,6 +161,7 @@ public class ServerResponse implements Runnable {
 			//SEND the PACKET
 		    try {
 		        socket.send(responseData);
+		        //socket.setSoTimeout(1000);
 		    } catch (IOException e) {
 		        e.printStackTrace();
 		    }
@@ -160,12 +169,33 @@ public class ServerResponse implements Runnable {
 		    if (!flag) {
 		    	buffer = new byte[512];
 		    	DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
-		    	try {
-		    		socket.receive(receivePacket);
-		    		data = receivePacket;
-		    	} catch (IOException e) {
-		    		e.printStackTrace();
-		    	}
+			    
+		    	boolean cont = false;
+		    	while(!cont){
+		    		cont = true;
+		    		try {
+			    		socket.receive(receivePacket);
+			    		data = receivePacket;
+			    		
+			    		//TODO if the data # does not equal currDataBlock # (or +1?) then ignore it and wait for a data packet again
+			    	} catch(SocketTimeoutException e){
+				    	e.printStackTrace();
+				    	
+				    	//SEND the PACKET
+					    try {
+					        socket.send(responseData);
+					    } catch (IOException e1) {
+					        e1.printStackTrace();
+					    }
+					    //try again
+					    cont = false;
+					    
+					    
+					    
+				    } catch (IOException e) {
+			    		e.printStackTrace();
+			    	}
+			    }
 		    	
 		    	if (data.getData()[0] == 0 && data.getData()[1] == 5) {
 		    		throw new EPException("Error packet received from Client!", receivePacket);
@@ -211,6 +241,7 @@ public class ServerResponse implements Runnable {
 			//SEND the PACKET
 		    try {
 		        socket.send(responseData);
+		        //socket.setSoTimeout(1000);
 		    } catch (IOException e) {
 		        e.printStackTrace();
 		    }
@@ -221,11 +252,28 @@ public class ServerResponse implements Runnable {
 		    
 		    byte[] buffer = new byte[516];
 	    	DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
-	    	try {
-	    		socket.receive(receivePacket);
-	    		data = receivePacket;
-	    	} catch (IOException e) {
-	    		e.printStackTrace();
+	    	boolean cont = false;
+	    	while(!cont){
+	    		cont = true;	
+	    		try {
+		    		socket.receive(receivePacket);
+		    		data = receivePacket;
+		    		
+		    		//TODO if ack/data is off go back to waiting for a recieve (cont = false)
+		    		
+		    	}catch(SocketTimeoutException e){
+			    	e.printStackTrace();
+			    	//SEND the PACKET
+				    try {
+				        socket.send(responseData);
+				    } catch (IOException e1) {
+				        e1.printStackTrace();
+				    }
+				    //try again
+				    cont = false;
+			    } catch (IOException e) {
+		    		e.printStackTrace();
+		    	}
 	    	}
 	    	
 	    	

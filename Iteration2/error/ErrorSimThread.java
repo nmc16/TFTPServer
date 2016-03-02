@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
 
+import server.ServerRequest;
 import shared.Helper;
 /**
  * The Thread for the Error simulator, takes init input from the Error simulator then send the request to the server 
@@ -24,8 +25,11 @@ public class ErrorSimThread implements Runnable {
 	private DatagramSocket errorSendSocket;
 	private int clientPort;
 	private int serverPort;
-	private boolean pass = false, errSocket = false;
+	private boolean countMode = false, errSocket = false, delayPacket=false, lost=false;
 	private int counter = 0;
+	private int packCount = 0;
+	private int packNum = 0;
+	private int delay=1000;
 	
 	public ErrorSimThread(DatagramPacket packet) {
 		this.packet = packet;
@@ -47,33 +51,67 @@ public class ErrorSimThread implements Runnable {
         int length = Received.getLength();
         int port = porter;
         
+        String args[] = ErrCode.split("\\s+");
         
-        if(ErrCode.equals("01")){
+        if(args[0].equals("01")){
         	//mess with data byte 1
         	newmsg[1] = 6;
-        	pass = true;
-        } else if(ErrCode.equals("02")){
+        	packNum = 1;
+        } else if(args[0].equals("02")){
         	//mess with data byte 0
         	newmsg[0] = 6;
-        	pass = true;
-        } else if(ErrCode.equals("03")){
+        	packNum = 1;
+        } else if(args[0].equals("03")){
         	//mess with port
         	errSocket = true;
-        	pass = true;
-        } else if(ErrCode.equals("04")){
+        	packNum = 1;
+        } else if(args[0].equals("04")){
         	//Wrong Address
         	errSocket = true;
-        	pass = true;
-        } else if(ErrCode.equals("05")){
+        	packNum = 1;
+        } else if(args[0].equals("05")){
         	// Edit the last bit of the mode to make it invalid
         	newmsg[length - 2] = 122;
-        	pass = true;
-        } else if(ErrCode.equals("11")){
+        	packNum = 1;
+        } else if(args[0].equals("06")){ //&& Integer.valueOf(args[1])>0){
+	        //delay the packet
+        	if(args.length >1){
+        		if (Integer.valueOf(args[1]) > 0){
+	        		delay = Integer.valueOf(args[1]);
+	        	}
+	        }
+        	delayPacket = true;
+        	//TODO add default val of arg1
+        }else if(args[0].equals("07")){
+        	//duplicate sent packet
+        	packNum = 1;
+        	//sendUsingSocket(new DatagramPacket(newmsg, length, address, port));
+        	
+        	
+        } else if(args[0].equals("08")){
+        	//lost
+        	lost = true;
+        	packNum=1;
+        	
+        }
+        else if(args[0].equals("11")){
         	//pass shit
-        	pass = true;
+        	packNum = 1;
+        }
+        else if(args[0].equals("12") && Integer.valueOf(args[1])>0){
+        	packNum = Integer.valueOf(args[1]);
+        	countMode = true;
         }
         return new DatagramPacket(newmsg, length, address, port);
     }
+	
+	public void DelayPacket(DatagramPacket data){
+		Thread requests = new Thread(new DelayPack(delay, data, this));
+        requests.start();
+		
+		delayPacket=false;
+		delay = 1000;
+	}
 	
 	public void PrintErrorList(){
 		System.out.print("\n\nThis is the error SIM. To choose your error, please print exactly what's between the quotations: \n");
@@ -84,11 +122,13 @@ public class ErrorSimThread implements Runnable {
 		if (counter > 1) {
 		    System.out.print("\"03\": Change to an invalid port number\n");
 		    System.out.print("\"04\": Change to a different Address\n");
+		    System.out.print("\"06\":Delay Packet");
 		} else if (counter == 0) {
 			System.out.print("\"05\": Change the mode\n");
 		}
 		
 		System.out.print("\"11\": Always normal function\n");
+		System.out.print("\"12 n\": Run 'n' number of normal function, where n is some positive int\n");
 	    System.out.print("> ");
 	    counter++;
 	}
@@ -130,9 +170,10 @@ public class ErrorSimThread implements Runnable {
 		  String input;
 	      byte data[] = new byte[516];
 	      
+	      packCount=0;
 	      //Decide on the error sim
 	      input = "00";
-	      if(!pass){
+	      if(packCount == packNum){
 	    	  PrintErrorList();
 	    	  input = reader.nextLine();
 	      }
@@ -152,7 +193,19 @@ public class ErrorSimThread implements Runnable {
 	      System.out.println("In bytes " + Arrays.toString(datamins) + "\n");
 	      
 	      //Send the data
-	      sendUsingSocket(sendPacket);
+	      if(!delayPacket){
+	    	  sendUsingSocket(sendPacket);
+	      } else if(lost){
+	    	  System.out.println("the packet was lost");
+	    	  lost = false;
+	      }
+	      else{
+	    	  //sendto thread
+	    	  DelayPacket(sendPacket);
+	    	  
+	    	  
+	      }
+	      
 	
 	      System.out.println("Intermediate: packet sent");
 	      boolean flag = false;
@@ -185,10 +238,12 @@ public class ErrorSimThread implements Runnable {
 		      System.out.println("Containing: " + new String(receivePacket.getData()));
 		      System.out.println("In bytes " + Arrays.toString(dataminr) + "\n\n");
 		      
-		      
+		      if(countMode){
+		      	packCount++;
+		      }
 		      //Decide on the error sim
 		      input = "00";
-		      if(!pass){
+		      if(packCount == packNum){
 		    	  PrintErrorList();
 		    	  input = reader.nextLine();
 		      }
@@ -207,7 +262,20 @@ public class ErrorSimThread implements Runnable {
 		      System.out.println("In bytes " + Arrays.toString(datamins2) + "\n");
 		      
 		      // Send the datagram packet to the client via the send socket. 
-		      sendUsingSocket(sendPacket);
+		      //sendUsingSocket(sendPacket);
+		      //Send the data
+		      if(!delayPacket){
+		    	  sendUsingSocket(sendPacket);
+		      } else if(lost){
+		    	  System.out.println("the packet was lost");
+		    	  lost = false;
+		      }
+		      else{
+		    	  //sendto thread
+		    	  DelayPacket(sendPacket);
+		    	  
+		      }
+		    
 		      
 		      if (flag) {
 		    	  break;
@@ -231,7 +299,7 @@ public class ErrorSimThread implements Runnable {
 		      
 		    //Decide on the error sim
 		      input = "00";
-		      if(!pass){
+		      if(packCount == packNum){
 		    	  PrintErrorList();
 		    	  input = reader.nextLine();
 		      }
@@ -249,7 +317,20 @@ public class ErrorSimThread implements Runnable {
 		      System.out.println("In bytes " + Arrays.toString(datamins3) + "\n");
 		      
 		      // Send the datagram packet to the client via the send socket. 
-		      sendUsingSocket(sendPacket);
+		      //sendUsingSocket(sendPacket);
+		      //Send the data
+		      if(!delayPacket){
+		    	  sendUsingSocket(sendPacket);
+		      } else if(lost){
+		    	  System.out.println("the packet was lost");
+		    	  lost = false;
+		      }
+		      else{
+		    	  //sendto thread
+		    	  DelayPacket(sendPacket);
+		    	  
+		      }
+		      
 	      }
 	      
 
