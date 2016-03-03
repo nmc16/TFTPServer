@@ -84,8 +84,8 @@ public class ErrorSimThread implements Runnable {
         	//TODO add default val of arg1
         }else if(args[0].equals("07")){
         	//duplicate sent packet
-        	packNum = 1;
-        	//sendUsingSocket(new DatagramPacket(newmsg, length, address, port));
+        	packNum = 0;
+        	sendUsingSocket(new DatagramPacket(newmsg, length, address, port));
         	
         	
         } else if(args[0].equals("08")){

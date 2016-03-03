@@ -54,6 +54,7 @@ public class Client {
     private int port, receivePort = -1;
     private String location, mode, saveLocation;
     private Path folderPath;
+    private int currBlock;
 
 	//TODO re add in timeout set
     
@@ -208,7 +209,18 @@ public class Client {
 	        	try {
 	        		// Block until a datagram is received via sendReceiveSocket.
 	        		sendReceiveSocket.receive(receivePacket);
-	        		//TODO if the block or ack # doesn't match ignore and wait for packet still ie cont =false
+	        		
+	        		
+		    		if(currBlock == -1){
+		    			currBlock =receivePacket.getData()[2];
+		    		}
+		    		else if(currBlock+1 == receivePacket.getData()[2]){
+		    			//if the new blocknum == +1 the previous
+		    			currBlock =receivePacket.getData()[2];
+		    		} else{
+		    			System.out.println("not looking for this packet ***");
+		    			cont = false;
+		    		}
 	        		
 	        	}catch(SocketTimeoutException e){
 			    	e.printStackTrace();
@@ -399,7 +411,8 @@ public class Client {
      * @param args Arguments passed from UI
      */
     private void runCommand(String args[]) throws IllegalOPException, AddressException {
-
+    	currBlock= -1;
+    	
         if (args[0].toLowerCase().equals("help")) {
             printMenu();
             return;

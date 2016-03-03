@@ -44,7 +44,7 @@ public class ServerResponse implements Runnable {
 	
 	private InetAddress address;
 	private int port;
-	private int currDataBlock, currACKBlock;
+	private int currDataBlock=-1, currACKBlock=-1;
 	
 	//TODO re add in timeout set
 	
@@ -177,7 +177,18 @@ public class ServerResponse implements Runnable {
 			    		socket.receive(receivePacket);
 			    		data = receivePacket;
 			    		
-			    		//TODO if the data # does not equal currDataBlock # (or +1?) then ignore it and wait for a data packet again
+			    		if(currDataBlock == -1){
+			    			currDataBlock = data.getData()[2];
+			    		} else if(currDataBlock+1 == data.getData()[2]){
+			    			currDataBlock = data.getData()[2];
+			    			
+			    		} else{
+			    			System.out.println("duplicated");
+			    			// if not expected packet ignore and keep waiting
+			    			cont = false;
+			    		}
+			    		
+			    		
 			    	} catch(SocketTimeoutException e){
 				    	e.printStackTrace();
 				    	
@@ -259,7 +270,17 @@ public class ServerResponse implements Runnable {
 		    		socket.receive(receivePacket);
 		    		data = receivePacket;
 		    		
-		    		//TODO if ack/data is off go back to waiting for a recieve (cont = false)
+		    		if(currACKBlock == -1){
+		    			currACKBlock = data.getData()[2];
+		    		} else if(currACKBlock+1 == data.getData()[2]){
+		    			currACKBlock = data.getData()[2];
+		    		} else{
+		    			System.out.println("duplicated");
+		    			// ignore duplicated packet
+		    			cont = false;
+		    		}
+		    		
+		    		
 		    		
 		    	}catch(SocketTimeoutException e){
 			    	e.printStackTrace();
