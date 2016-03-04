@@ -183,7 +183,7 @@ public class ServerResponse implements Runnable {
 			    			currDataBlock = data.getData()[2];
 			    			
 			    		} else{
-			    			System.out.println("duplicated");
+			    			//System.out.println("duplicated");
 			    			// if not expected packet ignore and keep waiting
 			    			cont = false;
 			    		}
@@ -275,7 +275,7 @@ public class ServerResponse implements Runnable {
 		    		} else if(currACKBlock+1 == data.getData()[2]){
 		    			currACKBlock = data.getData()[2];
 		    		} else{
-		    			System.out.println("duplicated");
+		    			//System.out.println("duplicated");
 		    			// ignore duplicated packet
 		    			cont = false;
 		    		}

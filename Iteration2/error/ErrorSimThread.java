@@ -122,7 +122,9 @@ public class ErrorSimThread implements Runnable {
 		if (counter > 1) {
 		    System.out.print("\"03\": Change to an invalid port number\n");
 		    System.out.print("\"04\": Change to a different Address\n");
-		    System.out.print("\"06\":Delay Packet");
+		    System.out.print("\"06\":Delay Packet\n");
+		    System.out.print("\"07\":Duplicate Packet\n");
+		    System.out.print("\"08\":Lose Packet\n");
 		} else if (counter == 0) {
 			System.out.print("\"05\": Change the mode\n");
 		}
@@ -175,7 +177,10 @@ public class ErrorSimThread implements Runnable {
 	      input = "00";
 	      if(packCount == packNum){
 	    	  PrintErrorList();
-	    	  input = reader.nextLine();
+	    	  if(reader.hasNextLine()){
+	    		  input = reader.nextLine();
+	    	  }
+	    	  	
 	      }
 	
 	      
@@ -195,10 +200,7 @@ public class ErrorSimThread implements Runnable {
 	      //Send the data
 	      if(!delayPacket){
 	    	  sendUsingSocket(sendPacket);
-	      } else if(lost){
-	    	  System.out.println("the packet was lost");
-	    	  lost = false;
-	      }
+	      } 
 	      else{
 	    	  //sendto thread
 	    	  DelayPacket(sendPacket);
@@ -210,127 +212,137 @@ public class ErrorSimThread implements Runnable {
 	      System.out.println("Intermediate: packet sent");
 	      boolean flag = false;
 	      while(true){
-
-		      //empty the data receiver
-		      data = new byte[516];
-		      
-		      //create a new receive packet
-		      DatagramPacket receivePacket = new DatagramPacket(data, data.length);
-		
-		      if (checkIfDone(receivePacket.getData())) flag = true;
-		      
-		      //wait until a new packet is received
-		      try {
-		         sendReceiveSocket.receive(receivePacket);
-		      } catch(IOException e) {
-		         e.printStackTrace();
-		         System.exit(1);
-		      }
-		      
-		      serverPort = receivePacket.getPort();
-		      
-		      byte dataminr[] = Helper.minimi(receivePacket.getData(), receivePacket.getLength());
-		      //print out the data on the received packet
-		      System.out.println("Intermediate: Packet received:");
-		      System.out.println("From host: " + receivePacket.getAddress());
-		      System.out.println("Host port: " + receivePacket.getPort());
-		      System.out.println("Length: " + receivePacket.getLength());
-		      System.out.println("Containing: " + new String(receivePacket.getData()));
-		      System.out.println("In bytes " + Arrays.toString(dataminr) + "\n\n");
-		      
-		      if(countMode){
-		      	packCount++;
-		      }
-		      //Decide on the error sim
-		      input = "00";
-		      if(packCount == packNum){
-		    	  PrintErrorList();
-		    	  input = reader.nextLine();
-		      }
-		
-		      
-		      //create a new packet to send
-		      sendPacket = BringError(dataminr, input, receivePacket, clientPort);
-		      
-		      byte datamins2[] = Helper.minimi(sendPacket.getData(), sendPacket.getLength());
-		      //print out the data to be sent
-		      System.out.println( "Intermediate: Sending packet:");
-		      System.out.println("To host: " + sendPacket.getAddress());
-		      System.out.println("Destination host port: " + sendPacket.getPort());
-		      System.out.println("Length: " + sendPacket.getLength());
-		      System.out.println("Containing: " + new String(sendPacket.getData()));
-		      System.out.println("In bytes " + Arrays.toString(datamins2) + "\n");
-		      
-		      // Send the datagram packet to the client via the send socket. 
-		      //sendUsingSocket(sendPacket);
-		      //Send the data
-		      if(!delayPacket){
-		    	  sendUsingSocket(sendPacket);
-		      } else if(lost){
-		    	  System.out.println("the packet was lost");
-		    	  lost = false;
-		      }
-		      else{
-		    	  //sendto thread
-		    	  DelayPacket(sendPacket);
-		    	  
-		      }
+	    	  DatagramPacket receivePacket;
+	    	  lost=true;
+	    	  while(lost){
+	    		  lost = false;//set lost init, will be set back to true if packet is specified to be lost
+			      //empty the data receiver
+			      data = new byte[516];
+			      
+			      //create a new receive packet
+			      receivePacket = new DatagramPacket(data, data.length);
+			
+			      if (checkIfDone(receivePacket.getData())) flag = true;
+			      
+			      //wait until a new packet is received
+			      try {
+			         sendReceiveSocket.receive(receivePacket);
+			      } catch(IOException e) {
+			         e.printStackTrace();
+			         System.exit(1);
+			      }
+			      
+			      serverPort = receivePacket.getPort();
+			      
+			      byte dataminr[] = Helper.minimi(receivePacket.getData(), receivePacket.getLength());
+			      //print out the data on the received packet
+			      System.out.println("Intermediate: Packet received:");
+			      System.out.println("From host: " + receivePacket.getAddress());
+			      System.out.println("Host port: " + receivePacket.getPort());
+			      System.out.println("Length: " + receivePacket.getLength());
+			      System.out.println("Containing: " + new String(receivePacket.getData()));
+			      System.out.println("In bytes " + Arrays.toString(dataminr) + "\n\n");
+			      
+			      if(countMode){
+			      	packCount++;
+			      }
+			      //Decide on the error sim
+			      input = "00";
+			      if(packCount == packNum){
+			    	  PrintErrorList();
+			    	  if(reader.hasNextLine()){
+			    		  input = reader.nextLine();
+			    	  }
+			      }
+			
+			      
+			      //create a new packet to send
+			      sendPacket = BringError(dataminr, input, receivePacket, clientPort);
+			      
+			      byte datamins2[] = Helper.minimi(sendPacket.getData(), sendPacket.getLength());
+			      //print out the data to be sent
+			      System.out.println( "Intermediate: Sending packet:");
+			      System.out.println("To host: " + sendPacket.getAddress());
+			      System.out.println("Destination host port: " + sendPacket.getPort());
+			      System.out.println("Length: " + sendPacket.getLength());
+			      System.out.println("Containing: " + new String(sendPacket.getData()));
+			      System.out.println("In bytes " + Arrays.toString(datamins2) + "\n");
+			      
+			      // Send the datagram packet to the client via the send socket. 
+			      //sendUsingSocket(sendPacket);
+			      //Send the data
+			      if(delayPacket){
+			    	  DelayPacket(sendPacket);
+			      } else if(lost){
+			    	  System.out.println("the packet was lost");
+			      }
+			      else{
+			    	  //sendto thread
+			    	  sendUsingSocket(sendPacket);
+			    	  
+			      }
+	    	  }
 		    
 		      
 		      if (flag) {
 		    	  break;
 		      }
-		      
-		      //empty the data receiver
-		      data = new byte[516];
-		      
-		      //create a new receive packet
-		      receivePacket = new DatagramPacket(data, data.length);
-		      
-		      //wait until a new packet is received
-		      try {
-		    	  sendReceiveSocket.receive(receivePacket);
-		    	  if (checkIfDone(receivePacket.getData())) flag = true;
-		      } catch(IOException e) {
-		    	  e.printStackTrace();
-		    	  System.exit(1);
-		      }
-		      
-		      
-		    //Decide on the error sim
-		      input = "00";
-		      if(packCount == packNum){
-		    	  PrintErrorList();
-		    	  input = reader.nextLine();
-		      }
-		      
-		      //create a new packet to send
-		      sendPacket = BringError(data, input, receivePacket, serverPort);
-		      
-		      byte datamins3[] = Helper.minimi(sendPacket.getData(), sendPacket.getLength());
-		      //print out the data to be sent
-		      System.out.println("Intermediate: Sending packet:");
-		      System.out.println("To host: " + sendPacket.getAddress());
-		      System.out.println("Destination host port: " + sendPacket.getPort());
-		      System.out.println("Length: " + sendPacket.getLength());
-		      System.out.println("Containing: " + new String(sendPacket.getData()));
-		      System.out.println("In bytes " + Arrays.toString(datamins3) + "\n");
-		      
-		      // Send the datagram packet to the client via the send socket. 
-		      //sendUsingSocket(sendPacket);
-		      //Send the data
-		      if(!delayPacket){
-		    	  sendUsingSocket(sendPacket);
-		      } else if(lost){
-		    	  System.out.println("the packet was lost");
-		    	  lost = false;
-		      }
-		      else{
-		    	  //sendto thread
-		    	  DelayPacket(sendPacket);
+		      lost=true;
+		      while(lost){
 		    	  
+		    	  lost=false;//set init to false if the user input sets it back to true keep loop going
+		    	  
+			      //empty the data receiver
+			      data = new byte[516];
+			      
+			      //create a new receive packet
+			      receivePacket = new DatagramPacket(data, data.length);
+			      
+			      //wait until a new packet is received
+			      try {
+			    	  sendReceiveSocket.receive(receivePacket);
+			    	  if (checkIfDone(receivePacket.getData())) flag = true;
+			      } catch(IOException e) {
+			    	  e.printStackTrace();
+			    	  System.exit(1);
+			      }
+			      
+			      
+			    //Decide on the error sim
+			      input = "00";
+			      if(packCount == packNum){
+			    	  PrintErrorList();
+			    	  if(reader.hasNextLine()){
+			    		  input = reader.nextLine();
+			    	  }
+			      }
+			      
+			      //create a new packet to send
+			      sendPacket = BringError(data, input, receivePacket, serverPort);
+			      
+			      byte datamins3[] = Helper.minimi(sendPacket.getData(), sendPacket.getLength());
+			      //print out the data to be sent
+			      System.out.println("Intermediate: Sending packet:");
+			      System.out.println("To host: " + sendPacket.getAddress());
+			      System.out.println("Destination host port: " + sendPacket.getPort());
+			      System.out.println("Length: " + sendPacket.getLength());
+			      System.out.println("Containing: " + new String(sendPacket.getData()));
+			      System.out.println("In bytes " + Arrays.toString(datamins3) + "\n");
+			      
+			      // Send the datagram packet to the client via the send socket. 
+			      //sendUsingSocket(sendPacket);
+			      //Send the data
+			      if(delayPacket){
+			    	  DelayPacket(sendPacket);
+			      } else if(lost){
+			    	  System.out.println("the packet was lost");
+			      }
+			      else{
+			    	  //sendto thread
+			    	  sendUsingSocket(sendPacket);
+			    	  
+			      }
 		      }
-		      
 	      }
 	      
 
