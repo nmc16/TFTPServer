@@ -45,6 +45,11 @@ public class Server {
                 } else if (args[0].toLowerCase().equals("verbose")) {
                     if (args.length == 2) {
                         ServerSettings.verbose = Boolean.valueOf(args[1]);
+                        if(args[1].toLowerCase().equals("true")){
+                        	System.out.println("Verbose mode set!");
+                        } else if(args[1].toLowerCase().equals("false")){
+                        	System.out.println("Verbose mode set to false!");
+                        }
                     } else {
                         System.out.println("Verbose command must be followed by true or false!");
                     }

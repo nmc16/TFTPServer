@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
 
+import java.net.SocketTimeoutException;
 import exception.AddressException;
 import exception.ExistsException;
 import exception.IllegalOPException;
@@ -38,23 +39,18 @@ public class Client {
     private static final byte DATA_CODE[] = {0, 3};
     private static final byte ERR_CODE[] = {0, 5};
     private static final byte ACK_CODE[] = {0, 4};
-    private static final byte EC0[] = {0, 0};
-    private static final byte EC1[] = {0, 1};
-    private static final byte EC2[] = {0, 2};
-    private static final byte EC3[] = {0, 3};
     private static final byte EC4[] = {0, 4};
     private static final byte EC5[] = {0, 5};
-    private static final byte EC6[] = {0, 6};
-    private static final byte EC7[] = {0, 7};
     private static final int HOST_PORT = 68;
     private static boolean verbose = false;
     private boolean running = true;
     private InetAddress address, receiveAddress;
-    private int port, receivePort = -1;
-    private String location, mode, saveLocation;
+    private int receivePort = -1;
+    private String location, saveLocation;
     private Path folderPath;
+    private int currBlock;
 
-
+    
     public Client() {
         try {
         	// Randomize a port number and create the socket
@@ -195,16 +191,53 @@ public class Client {
 
         // Construct a DatagramPacket for receiving packets up
         // to 516 bytes long (the length of the byte array).
+        DatagramPacket response = sendPacket;
         while (true) {
+        	
         	byte data[] = new byte[516];
         	receivePacket = new DatagramPacket(data, data.length);
-
-        	try {
-        		// Block until a datagram is received via sendReceiveSocket.
-        		sendReceiveSocket.receive(receivePacket);
-        	} catch(IOException e) {
-        		e.printStackTrace();
-        		System.exit(1);
+        	
+        	boolean cont = false;
+        	while(!cont){
+        		cont = true;
+	        	try {
+	        		// Block until a datagram is received via sendReceiveSocket.
+	        		if(response.getPort() != HOST_PORT){
+	        			System.out.println(response.getPort());
+	        			sendReceiveSocket.setSoTimeout(1000);
+	        		} else {
+	        			sendReceiveSocket.setSoTimeout(0);
+	        		}
+	        		
+	        		sendReceiveSocket.receive(receivePacket);
+	        		Helper.printPacketData(receivePacket, "this goddamn packet", true);
+	        		
+		    		if(currBlock == 0 && receivePacket.getData()[2] == 0){
+		    			currBlock = -1;
+	        		}
+		    		 if(currBlock+1 == receivePacket.getData()[2]){
+		    			//if the new blocknum == +1 the previous
+		    			currBlock =receivePacket.getData()[2];
+		    		} else{
+		    			cont = false;
+		    		}
+	        		
+	        	}catch(SocketTimeoutException e){
+			    	e.printStackTrace();
+			    	try {
+			            sendReceiveSocket.send(response);
+			        } catch (IOException e1) {
+			            e1.printStackTrace();
+			            System.exit(1);
+			        }
+			    	cont = false;
+			    	
+			    	
+			    } catch(IOException e) {
+	        		e.printStackTrace();
+	        		System.exit(1);
+	        	}
+	        	
         	}
         	
         	
@@ -227,7 +260,6 @@ public class Client {
         	// Check the OP Code
         	byte[] opCode = Arrays.copyOfRange(receivePacket.getData(), 0, 2);
             byte[] byteBlockNumber = Arrays.copyOfRange(receivePacket.getData(), 2, 4);
-            DatagramPacket response = null;
 
             // If the code is an ACK then we need to send the next block of data
         	if (Arrays.equals(opCode, ACK_CODE)) {
@@ -343,7 +375,6 @@ public class Client {
         buffer.write(0);
 
         this.location = location;
-        this.mode = mode;
         
         return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, HOST_PORT);
     }
@@ -378,7 +409,8 @@ public class Client {
      * @param args Arguments passed from UI
      */
     private void runCommand(String args[]) throws IllegalOPException, AddressException {
-
+    	currBlock = 0;
+    	
         if (args[0].toLowerCase().equals("help")) {
             printMenu();
             return;
@@ -449,6 +481,7 @@ public class Client {
                 } else {
                     try{
                     	runCommand(args);
+                    	
                     } catch(IllegalOPException e){
                     	sendERRPacket(EC4, address, e.getMessage(), receivePort);
                     	

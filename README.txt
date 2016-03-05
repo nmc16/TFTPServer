@@ -1,4 +1,4 @@
-Project Iteration 2:
+Project Iteration 3:
 
 Authors:
 	Nic McCallum
@@ -10,39 +10,45 @@ Description:
 	The program is expected to communicate between a client, or multiple clients, and a server. The communication can be
 	either a read or write request of a file.
 
-Steps:
+Steps for running:
     1) Run ErrorSim.java
     2) Run Server.java
     3) Run Client.java
-    4) Follow on-screen instructions
-    5) The format is:
-        read [filename] [file location] [mode] - Reads the file from the server under filename and saves
+    4) Follow on screen format
+	The format is:
+        read [filename on server] [file location] [mode] - Reads the file from the server under filename and saves
                                                  the file under the path specified under the root where the
                                                  project is being run under directory "client_files".
-        write [filename] [file location] [mode] - Writes file at location to filename on server.
+        write [filename on server] [file location] [mode] - Writes file at location to filename on server.
         verbose [true|false] - Changes server display mode to verbose or silent mode.
         help - Prints options screen.
         quit - Quits the client program.
         
-    NOTE: The file location is saved under client_files for the client and server_files for the server.
-          Both can have sub directories by entering the directory under the root you want, ie:
+        NOTE: The file location is saved under client_files for the client and root for the server.
+              Client files can have sub directories by entering the directory under the root you want, ie:
           		
           		read wrt.txt clientx\readfiles\r.txt octet
           		
           This will save the file under the client_files\clientx\readfiles directory.
+    
+    5) write a request to server(FOR EXAMPLE: write out.txt C:/512.txt octet)
+    6) select error options 00-09
+    7) read a request to server (FOR EXAMPLE: read out.txt client1/read.txt octet)
+    8) select error options 00-09
+
 
 Testing:
     The testing was done was by writing a file to the server and reading a file from the server by using the 512.txt.
-    1) write written.txt C:\512.txt octet - This will write the file located at C:\512.txt to the server as written.txt
-                                            under the server_files directory.
+    1) In the client console type write written.txt C:\512.txt octet - This will write the file located at C:\512.txt to the server as written.txt
+                                            under the project root directory.
                                             
-    2) Selecting TEST mode on the ErrorSim by entering 11 at the prompt. This will complete the request without editing 
+    2) Selecting TEST mode on the ErrorSim by entering 00-09 at the prompt. This will complete the request without editing 
        any packets being sent for this request.
     
-    3) read written.txt read.txt octet - This will read the file written.txt from the server and save it to the location
+    3) In the client console type read written.txt read.txt octet - This will read the file written.txt from the server and save it to the location
                                          client_files under the run directory with the name given.
                                          
-    4) Selecting TEST mode on the ErrorSim by entering 11 at the prompt. This will complete the request without editing 
+    4) Selecting TEST mode on the ErrorSim by entering 00-09 at the prompt. This will complete the request without editing 
        any packets being sent for this request.
                                          
     5) quit - Quit the client program
@@ -73,11 +79,10 @@ Testing:
     	   client closes and sends error packet to server -> Server closes request thread.
     	
     	6) Client sends read request -> Server Responds -> ErrorSim edits the OP code -> client closes and sends error packet to server -> 
-    	   Server closes request thread.
-    	
+    	   Server closes request thread. 
     Breakdown:
-    	Kevin: Coding
-        Nic: Coding
-        Abbas: UMC, Testing, Timing Diagrams
-        Niko: UML, Testing, Timing Diagrams
+    	Niko: Coding
+        Abbas: Coding
+        Nic: Testing, Timing Diagrams
+        Kevin: Testing, Timing Diagrams
     	

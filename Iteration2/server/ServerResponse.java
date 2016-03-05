@@ -9,6 +9,7 @@ import shared.Helper;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.util.Arrays;
 import java.util.Random;
 import java.io.*;
@@ -21,26 +22,26 @@ import java.io.*;
  * @author Team6
  */
 public class ServerResponse implements Runnable {
-    private static final int DATA_SIZE = 516;
     private static final byte RRQ = 1;
-    private static final byte WRQ = 2;
     private static final byte DATA = 3;
     private static final byte ACK = 4;
-    private static final byte EC0[] = {0, 0};
     private static final byte EC1[] = {0, 1};
     private static final byte EC2[] = {0, 2};
-    private static final byte EC3[] = {0, 3};
     private static final byte EC4[] = {0, 4};
     private static final byte EC5[] = {0, 5};
     private static final byte EC6[] = {0, 6};
-    private static final byte EC7[] = {0, 7};
     
 	private DatagramPacket initialPacket;
 	private DatagramPacket data;
 	private DatagramSocket socket;
 	
+	
 	private InetAddress address;
 	private int port;
+	private int currDataBlock=-1, currACKBlock=-1;
+	
+	//TODO re add in timeout set
+	
 	
 	public ServerResponse(DatagramPacket data) {
 		this.initialPacket = data;
@@ -51,6 +52,7 @@ public class ServerResponse implements Runnable {
 	        this.address = data.getAddress();
 	        this.port = data.getPort();
 	        socket = new DatagramSocket(r.nextInt(65500));
+	        
 	    } catch (IOException e) {
 	        e.printStackTrace();
 	    }
@@ -160,12 +162,45 @@ public class ServerResponse implements Runnable {
 		    if (!flag) {
 		    	buffer = new byte[512];
 		    	DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
-		    	try {
-		    		socket.receive(receivePacket);
-		    		data = receivePacket;
-		    	} catch (IOException e) {
-		    		e.printStackTrace();
-		    	}
+			    
+		    	boolean cont = false;
+		    	while(!cont){
+		    		cont = true;
+		    		try {
+		    			socket.setSoTimeout(1000);
+			    		socket.receive(receivePacket);
+			    		data = receivePacket;
+			    		
+			    		if(currDataBlock == -1){
+			    			currDataBlock = data.getData()[2];
+			    		} else if(currDataBlock+1 == data.getData()[2]){
+			    			currDataBlock = data.getData()[2];
+			    			
+			    		} else{
+			    			// if not expected packet ignore and keep waiting
+			    			cont = false;
+			    		}
+			    		
+			    		
+			    	} catch(SocketTimeoutException e){
+				    	e.printStackTrace();
+				    	
+				    	//SEND the PACKET
+					    try {
+					    	System.out.println("send again");
+					        socket.send(responseData);
+					    } catch (IOException e1) {
+					        e1.printStackTrace();
+					    }
+					    //try again
+					    cont = false;
+					    
+					    
+					    
+				    } catch (IOException e) {
+			    		e.printStackTrace();
+			    	}
+			    }
 		    	
 		    	if (data.getData()[0] == 0 && data.getData()[1] == 5) {
 		    		throw new EPException("Error packet received from Client!", receivePacket);
@@ -221,11 +256,38 @@ public class ServerResponse implements Runnable {
 		    
 		    byte[] buffer = new byte[516];
 	    	DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
-	    	try {
-	    		socket.receive(receivePacket);
-	    		data = receivePacket;
-	    	} catch (IOException e) {
-	    		e.printStackTrace();
+	    	boolean cont = false;
+	    	while(!cont){
+	    		cont = true;	
+	    		try {
+	    			socket.setSoTimeout(1000);
+		    		socket.receive(receivePacket);
+		    		data = receivePacket;
+		    		
+		    		if(currACKBlock == -1){
+		    			currACKBlock = data.getData()[2];
+		    		} else if(currACKBlock+1 == data.getData()[2]){
+		    			currACKBlock = data.getData()[2];
+		    		} else{
+		    			// ignore duplicated packet
+		    			cont = false;
+		    		}
+		    		
+		    		
+		    		
+		    	}catch(SocketTimeoutException e){
+			    	e.printStackTrace();
+			    	//SEND the PACKET
+				    //try {
+				        //socket.send(responseData);
+				    //} catch (IOException e1) {
+				      //  e1.printStackTrace();
+				    //}
+				    //try again
+				    cont = false;
+			    } catch (IOException e) {
+		    		e.printStackTrace();
+		    	}
 	    	}
 	    	
 	    	
@@ -302,5 +364,6 @@ public class ServerResponse implements Runnable {
             }
 	    }
 	    
+	    System.out.println("FIN");
 	}
 }
