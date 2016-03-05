@@ -161,7 +161,6 @@ public class ServerResponse implements Runnable {
 			//SEND the PACKET
 		    try {
 		        socket.send(responseData);
-		        //socket.setSoTimeout(1000);
 		    } catch (IOException e) {
 		        e.printStackTrace();
 		    }
@@ -174,6 +173,7 @@ public class ServerResponse implements Runnable {
 		    	while(!cont){
 		    		cont = true;
 		    		try {
+		    			socket.setSoTimeout(1000);
 			    		socket.receive(receivePacket);
 			    		data = receivePacket;
 			    		
@@ -183,7 +183,6 @@ public class ServerResponse implements Runnable {
 			    			currDataBlock = data.getData()[2];
 			    			
 			    		} else{
-			    			//System.out.println("duplicated");
 			    			// if not expected packet ignore and keep waiting
 			    			cont = false;
 			    		}
@@ -194,6 +193,7 @@ public class ServerResponse implements Runnable {
 				    	
 				    	//SEND the PACKET
 					    try {
+					    	System.out.println("send again");
 					        socket.send(responseData);
 					    } catch (IOException e1) {
 					        e1.printStackTrace();
@@ -252,7 +252,6 @@ public class ServerResponse implements Runnable {
 			//SEND the PACKET
 		    try {
 		        socket.send(responseData);
-		        //socket.setSoTimeout(1000);
 		    } catch (IOException e) {
 		        e.printStackTrace();
 		    }
@@ -267,6 +266,7 @@ public class ServerResponse implements Runnable {
 	    	while(!cont){
 	    		cont = true;	
 	    		try {
+	    			socket.setSoTimeout(1000);
 		    		socket.receive(receivePacket);
 		    		data = receivePacket;
 		    		
@@ -275,7 +275,6 @@ public class ServerResponse implements Runnable {
 		    		} else if(currACKBlock+1 == data.getData()[2]){
 		    			currACKBlock = data.getData()[2];
 		    		} else{
-		    			//System.out.println("duplicated");
 		    			// ignore duplicated packet
 		    			cont = false;
 		    		}
@@ -285,11 +284,11 @@ public class ServerResponse implements Runnable {
 		    	}catch(SocketTimeoutException e){
 			    	e.printStackTrace();
 			    	//SEND the PACKET
-				    try {
-				        socket.send(responseData);
-				    } catch (IOException e1) {
-				        e1.printStackTrace();
-				    }
+				    //try {
+				        //socket.send(responseData);
+				    //} catch (IOException e1) {
+				      //  e1.printStackTrace();
+				    //}
 				    //try again
 				    cont = false;
 			    } catch (IOException e) {
@@ -371,5 +370,6 @@ public class ServerResponse implements Runnable {
             }
 	    }
 	    
+	    System.out.println("FIN");
 	}
 }

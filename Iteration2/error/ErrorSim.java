@@ -42,6 +42,7 @@ public class ErrorSim {
 			// Block until a datagram packet is received from receiveSocket.
 			try {        
 				receiveSocket.receive(receivePacket);
+				System.out.println("new thread");
 			} catch (IOException e) {
 				e.printStackTrace();
 				System.exit(1);

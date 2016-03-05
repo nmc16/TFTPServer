@@ -20,20 +20,20 @@ import shared.Helper;
  * @author Team6
  */
 public class ErrorSimThread implements Runnable {
-	private DatagramPacket packet;
 	private DatagramSocket sendReceiveSocket;
 	private DatagramSocket errorSendSocket;
+	private DatagramPacket initPacket;
 	private int clientPort;
-	private int serverPort;
-	private boolean countMode = false, errSocket = false, delayPacket=false, lost=false;
-	private int counter = 0;
+	private int serverPort = -1;
 	private int packCount = 0;
 	private int packNum = 0;
-	private int delay=1000;
+	private int delay = 2000;
+	private String mode = "00";
+	private boolean errSocket = false, delayPacket = false, duplicate = false, lost = false;
 	
 	public ErrorSimThread(DatagramPacket packet) {
-		this.packet = packet;
 		this.clientPort = packet.getPort();
+		this.initPacket= packet;
 		try {
 			sendReceiveSocket = new DatagramSocket();
 			errorSendSocket = new DatagramSocket();
@@ -44,95 +44,81 @@ public class ErrorSimThread implements Runnable {
 		} 
 	}
 	
-	
-	public DatagramPacket BringError(byte msg[], String ErrCode, DatagramPacket Received, int porter) {
+	/**
+	 * 
+	 * @param msg
+	 * @param errCode
+	 * @param received
+	 * @param porter
+	 * @return
+	 */
+	public DatagramPacket bringError(byte msg[], DatagramPacket received, int port) {
         byte newmsg[] = msg;
-        InetAddress address = Received.getAddress();
-        int length = Received.getLength();
-        int port = porter;
+        InetAddress address = received.getAddress();
+        int length = received.getLength();
         
-        String args[] = ErrCode.split("\\s+");
-        
-        if(args[0].equals("01")){
+       
+        if(mode.equals("00")){
+        	//normal
+        	return new DatagramPacket(newmsg, length, address, port);
+        }
+        else if(mode.equals("01")){
         	//mess with data byte 1
         	newmsg[1] = 6;
-        	packNum = 1;
-        } else if(args[0].equals("02")){
+        } else if(mode.equals("02")){
         	//mess with data byte 0
         	newmsg[0] = 6;
-        	packNum = 1;
-        } else if(args[0].equals("03")){
+        } else if(mode.equals("03")){
         	//mess with port
         	errSocket = true;
-        	packNum = 1;
-        } else if(args[0].equals("04")){
+        } else if(mode.equals("04")){
         	//Wrong Address
         	errSocket = true;
-        	packNum = 1;
-        } else if(args[0].equals("05")){
+        } else if(mode.equals("05")){
         	// Edit the last bit of the mode to make it invalid
         	newmsg[length - 2] = 122;
-        	packNum = 1;
-        } else if(args[0].equals("06")){ //&& Integer.valueOf(args[1])>0){
+        } else if(mode.equals("06")){ //&& Integer.valueOf(args[1])>0){
 	        //delay the packet
-        	if(args.length >1){
-        		if (Integer.valueOf(args[1]) > 0){
-	        		delay = Integer.valueOf(args[1]);
-	        	}
-	        }
+        	
         	delayPacket = true;
         	//TODO add default val of arg1
-        }else if(args[0].equals("07")){
+        }else if(mode.equals("07")){
         	//duplicate sent packet
-        	packNum = 0;
-        	sendUsingSocket(new DatagramPacket(newmsg, length, address, port));
+        	duplicate = true;
         	
         	
-        } else if(args[0].equals("08")){
+        } else if(mode.equals("08")){
         	//lost
         	lost = true;
-        	packNum=1;
         	
-        }
-        else if(args[0].equals("11")){
-        	//pass shit
-        	packNum = 1;
-        }
-        else if(args[0].equals("12") && Integer.valueOf(args[1])>0){
-        	packNum = Integer.valueOf(args[1]);
-        	countMode = true;
-        }
+        } 
+        
+        
         return new DatagramPacket(newmsg, length, address, port);
     }
 	
-	public void DelayPacket(DatagramPacket data){
+	public void delayPacket(DatagramPacket data){
 		Thread requests = new Thread(new DelayPack(delay, data, this));
         requests.start();
 		
 		delayPacket=false;
-		delay = 1000;
 	}
 	
-	public void PrintErrorList(){
-		System.out.print("\n\nThis is the error SIM. To choose your error, please print exactly what's between the quotations: \n");
+	public void printErrorList() {
+		System.out.print("\n\nThis is the error SIM. To choose your error, please print exactly what's between the quotations and the packet number afterwards: \n");
 		System.out.print("\"00\": Normal Operations\n");
 		System.out.print("\"01\": Changes the first byte in the OpCode\n");
 		System.out.print("\"02\": Changes the second byte in the OpCode\n");
-		
-		if (counter > 1) {
-		    System.out.print("\"03\": Change to an invalid port number\n");
-		    System.out.print("\"04\": Change to a different Address\n");
-		    System.out.print("\"06\":Delay Packet\n");
-		    System.out.print("\"07\":Duplicate Packet\n");
-		    System.out.print("\"08\":Lose Packet\n");
-		} else if (counter == 0) {
-			System.out.print("\"05\": Change the mode\n");
-		}
-		
-		System.out.print("\"11\": Always normal function\n");
-		System.out.print("\"12 n\": Run 'n' number of normal function, where n is some positive int\n");
+
+	    System.out.print("\"03\": Change to an invalid port number\n");
+	    System.out.print("\"04\": Change to a different Address\n");
+	    System.out.print("\"05\": Change the mode\n");
+	    System.out.print("\"06\": Delay Packet\n");
+	    System.out.print("\"07\": Duplicate Packet\n");
+	    System.out.print("\"08\": Lose Packet\n");
+
+		System.out.print("\"09\": Always normal function\n");
 	    System.out.print("> ");
-	    counter++;
 	}
 	
 	
@@ -162,193 +148,150 @@ public class ErrorSimThread implements Runnable {
 		}
 		return false;
 	}
+	
+	public boolean setMode(String input) {
+		String args[] = input.split("\\s+");
+ 	  	
+ 	  	if(args.length != 2){
+ 	  		return false;
+ 	  	}
+ 	  	
+ 	  	int i = Integer.valueOf(args[0]);
+ 	  	if (i < 0 || i > 9) {
+ 	  		return false;
+ 	  	}
+ 	  	
+ 	  	mode = args[0];
+ 	  	packCount = 1;
+ 	  	packNum = Integer.valueOf(args[1]);
+ 	  	
+ 	  	return true;
+ 	  	
+	}
+	
+	
+	public boolean recAndSend(){
+		
+		 byte data[] = new byte[516];
+		
+		//create a new receive packet
+	      DatagramPacket receivePacket = new DatagramPacket(data, data.length);
+	      
+	      //wait until a new packet is received
+	      try {
+	         sendReceiveSocket.receive(receivePacket);
+	      } catch(IOException e) {
+	         e.printStackTrace();
+	         System.exit(1);
+	      }
+	      
+	      if(serverPort == -1){
+	    	  serverPort = receivePacket.getPort();
+	      }
+	      
+	      Helper.printPacketData(receivePacket, "ErrorSim Received Packet", true);
+	      
+	      //check
+	      
+	      if(receivePacket.getPort() == serverPort){
+	    	  	receivePacket = new DatagramPacket(receivePacket.getData(), receivePacket.getLength(), receivePacket.getAddress(), clientPort);
+	      } else {
+	    	  receivePacket = new DatagramPacket(receivePacket.getData(), receivePacket.getLength(), receivePacket.getAddress(), serverPort);
+	      }
+	      
+	      packCount++;
+	      if(packCount == packNum){
+	    	  //call function
+	    	  receivePacket = bringError(Helper.minimi(receivePacket.getData(), receivePacket.getLength()), receivePacket, receivePacket.getPort());
+	      }
+	      
+	      if(receivePacket.getData()[1] == 5){
+	    	  System.out.println("error");
+	    	  return false;
+	      }
+	      
+	      Helper.printPacketData(receivePacket, "ErrorSim Sending Packet", true);
+	      
+	      //send
+	      if(lost){
+	    	  System.out.println("lost packet");
+	    	  lost = false;
+	    	  //recAndSend();
+	      } else if(duplicate){
+	    	  sendUsingSocket(receivePacket);
+	    	  sendUsingSocket(receivePacket);
+	    	  duplicate = false;
+	      } else if(delayPacket){
+	    	  delayPacket(receivePacket);
+	      } else{
+	    	  sendUsingSocket(receivePacket);
+	      }
+		       
+		      
+		
+		
+		return true;
+	      
+	      
+	}
+	
+	
+	
 	/**
 	 * Takes in information from the server thread, and passes it to the client and vice versa   
 	 */
 	@Override
 	public void run() {
 		// Initialize the variables
-		  Scanner reader = new Scanner(System.in);
-		  String input;
-	      byte data[] = new byte[516];
+		Scanner reader = new Scanner(System.in);
+		String input;
+		byte data[] = new byte[516];
 	      
-	      packCount=0;
-	      //Decide on the error sim
-	      input = "00";
-	      if(packCount == packNum){
-	    	  PrintErrorList();
-	    	  if(reader.hasNextLine()){
-	    		  input = reader.nextLine();
-	    	  }
-	    	  	
-	      }
-	
-	      
-	      //create a new packet to send
-	      DatagramPacket sendPacket = BringError(packet.getData(), input, packet, 69);
-	      
-	      byte datamins[] = Helper.minimi(sendPacket.getData(), sendPacket.getLength());
-	      //print out the data to be sent
-	      System.out.println( "Intermediate: Sending packet:");
-	      System.out.println("To host: " + sendPacket.getAddress());
-	      System.out.println("Destination host port: " + sendPacket.getPort());
-	      System.out.println("Length: " + sendPacket.getLength());
-	      System.out.print("Containing: ");
-	      System.out.println(new String(sendPacket.getData()));
-	      System.out.println("In bytes " + Arrays.toString(datamins) + "\n");
-	      
-	      //Send the data
-	      if(!delayPacket){
-	    	  sendUsingSocket(sendPacket);
-	      } 
-	      else{
-	    	  //sendto thread
-	    	  DelayPacket(sendPacket);
-	    	  
-	    	  
-	      }
-	      
-	
-	      System.out.println("Intermediate: packet sent");
-	      boolean flag = false;
-	      while(true){
-	    	  DatagramPacket receivePacket;
-	    	  lost=true;
-	    	  while(lost){
-	    		  lost = false;//set lost init, will be set back to true if packet is specified to be lost
-			      //empty the data receiver
-			      data = new byte[516];
-			      
-			      //create a new receive packet
-			      receivePacket = new DatagramPacket(data, data.length);
+		//Decide on the error sim
+		while(true){
+			printErrorList();
+	 	  	input = reader.nextLine();
+	 	  	if(setMode(input)){
+	 	  		break;
+	 	  	}
+	 	  	else{
+	 	  		System.out.println("Incorrect input (do it again!)");
+	 	  	}
+	 	  	
+		}
+		DatagramPacket sent = new DatagramPacket(initPacket.getData(), initPacket.getLength(), initPacket.getAddress(), 69);
+		sendUsingSocket(sent);
+		
+		packCount++;
+		
+		
+		while(true){
+			boolean cont;
 			
-			      if (checkIfDone(receivePacket.getData())) flag = true;
-			      
-			      //wait until a new packet is received
-			      try {
-			         sendReceiveSocket.receive(receivePacket);
-			      } catch(IOException e) {
-			         e.printStackTrace();
-			         System.exit(1);
-			      }
-			      
-			      serverPort = receivePacket.getPort();
-			      
-			      byte dataminr[] = Helper.minimi(receivePacket.getData(), receivePacket.getLength());
-			      //print out the data on the received packet
-			      System.out.println("Intermediate: Packet received:");
-			      System.out.println("From host: " + receivePacket.getAddress());
-			      System.out.println("Host port: " + receivePacket.getPort());
-			      System.out.println("Length: " + receivePacket.getLength());
-			      System.out.println("Containing: " + new String(receivePacket.getData()));
-			      System.out.println("In bytes " + Arrays.toString(dataminr) + "\n\n");
-			      
-			      if(countMode){
-			      	packCount++;
-			      }
-			      //Decide on the error sim
-			      input = "00";
-			      if(packCount == packNum){
-			    	  PrintErrorList();
-			    	  if(reader.hasNextLine()){
-			    		  input = reader.nextLine();
-			    	  }
-			      }
+			//recandsend(serverThread, client)
+			cont = recAndSend();
 			
-			      
-			      //create a new packet to send
-			      sendPacket = BringError(dataminr, input, receivePacket, clientPort);
-			      
-			      byte datamins2[] = Helper.minimi(sendPacket.getData(), sendPacket.getLength());
-			      //print out the data to be sent
-			      System.out.println( "Intermediate: Sending packet:");
-			      System.out.println("To host: " + sendPacket.getAddress());
-			      System.out.println("Destination host port: " + sendPacket.getPort());
-			      System.out.println("Length: " + sendPacket.getLength());
-			      System.out.println("Containing: " + new String(sendPacket.getData()));
-			      System.out.println("In bytes " + Arrays.toString(datamins2) + "\n");
-			      
-			      // Send the datagram packet to the client via the send socket. 
-			      //sendUsingSocket(sendPacket);
-			      //Send the data
-			      if(delayPacket){
-			    	  DelayPacket(sendPacket);
-			      } else if(lost){
-			    	  System.out.println("the packet was lost");
-			      }
-			      else{
-			    	  //sendto thread
-			    	  sendUsingSocket(sendPacket);
-			    	  
-			      }
-	    	  }
-		    
-		      
-		      if (flag) {
-		    	  break;
-		      }
-		      lost=true;
-		      while(lost){
-		    	  
-		    	  lost=false;//set init to false if the user input sets it back to true keep loop going
-		    	  
-			      //empty the data receiver
-			      data = new byte[516];
-			      
-			      //create a new receive packet
-			      receivePacket = new DatagramPacket(data, data.length);
-			      
-			      //wait until a new packet is received
-			      try {
-			    	  sendReceiveSocket.receive(receivePacket);
-			    	  if (checkIfDone(receivePacket.getData())) flag = true;
-			      } catch(IOException e) {
-			    	  e.printStackTrace();
-			    	  System.exit(1);
-			      }
-			      
-			      
-			    //Decide on the error sim
-			      input = "00";
-			      if(packCount == packNum){
-			    	  PrintErrorList();
-			    	  if(reader.hasNextLine()){
-			    		  input = reader.nextLine();
-			    	  }
-			      }
-			      
-			      //create a new packet to send
-			      sendPacket = BringError(data, input, receivePacket, serverPort);
-			      
-			      byte datamins3[] = Helper.minimi(sendPacket.getData(), sendPacket.getLength());
-			      //print out the data to be sent
-			      System.out.println("Intermediate: Sending packet:");
-			      System.out.println("To host: " + sendPacket.getAddress());
-			      System.out.println("Destination host port: " + sendPacket.getPort());
-			      System.out.println("Length: " + sendPacket.getLength());
-			      System.out.println("Containing: " + new String(sendPacket.getData()));
-			      System.out.println("In bytes " + Arrays.toString(datamins3) + "\n");
-			      
-			      // Send the datagram packet to the client via the send socket. 
-			      //sendUsingSocket(sendPacket);
-			      //Send the data
-			      if(delayPacket){
-			    	  DelayPacket(sendPacket);
-			      } else if(lost){
-			    	  System.out.println("the packet was lost");
-			      }
-			      else{
-			    	  //sendto thread
-			    	  sendUsingSocket(sendPacket);
-			    	  
-			      }
-		      }
-	      }
+			
+			if(!cont){
+				break;
+			}
+
+			
+			//recandsend(client, serverThread)
+			cont = recAndSend();
+			
+			if(!cont){
+				break;
+			}
+		}
+	 	  
+	      
 	      
 
-	      // We're finished, so close the sockets.
-	      sendReceiveSocket.close();
-	      reader.close();
+		// We're finished, so close the sockets.
+		System.out.println("FIN");
+		sendReceiveSocket.close();
+		reader.close();
 	}
 	
 }

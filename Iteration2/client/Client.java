@@ -191,7 +191,6 @@ public class Client {
         // Send the datagram packet to the intermediate via the send/receive socket.
         try {
             sendReceiveSocket.send(sendPacket);
-            //sendReceiveSocket.setSoTimeout(10000);
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
@@ -208,17 +207,24 @@ public class Client {
         		cont = true;
 	        	try {
 	        		// Block until a datagram is received via sendReceiveSocket.
+	        		if(sendPacket.getPort() != HOST_PORT){
+	        			sendReceiveSocket.setSoTimeout(1000);
+	        		} else {
+	        			sendReceiveSocket.setSoTimeout(0);
+	        		}
+	        		
+	        		System.out.println("HERE");
 	        		sendReceiveSocket.receive(receivePacket);
+	        		Helper.printPacketData(receivePacket, "this goddamn packet", true);
+	        		System.out.println("HERE2");
 	        		
-	        		
-		    		if(currBlock == -1){
-		    			currBlock =receivePacket.getData()[2];
-		    		}
-		    		else if(currBlock+1 == receivePacket.getData()[2]){
+		    		if(currBlock == 0 && receivePacket.getData()[2] == 0){
+		    			currBlock = -1;
+	        		}
+		    		 if(currBlock+1 == receivePacket.getData()[2]){
 		    			//if the new blocknum == +1 the previous
 		    			currBlock =receivePacket.getData()[2];
 		    		} else{
-		    			System.out.println("not looking for this packet ***");
 		    			cont = false;
 		    		}
 	        		
@@ -411,7 +417,7 @@ public class Client {
      * @param args Arguments passed from UI
      */
     private void runCommand(String args[]) throws IllegalOPException, AddressException {
-    	currBlock= -1;
+    	currBlock = 0;
     	
         if (args[0].toLowerCase().equals("help")) {
             printMenu();
@@ -483,6 +489,7 @@ public class Client {
                 } else {
                     try{
                     	runCommand(args);
+                    	
                     } catch(IllegalOPException e){
                     	sendERRPacket(EC4, address, e.getMessage(), receivePort);
                     	
