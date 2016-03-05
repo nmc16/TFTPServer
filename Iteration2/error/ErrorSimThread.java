@@ -113,7 +113,6 @@ public class ErrorSimThread implements Runnable {
 	    System.out.print("\"07\": Duplicate Packet\n");
 	    System.out.print("\"08\": Lose Packet\n");
 
-		System.out.print("\"09\": Always normal function\n");
 	    System.out.print("> ");
 	}
 	
