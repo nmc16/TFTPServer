@@ -32,9 +32,9 @@ Steps for running:
           This will save the file under the client_files\clientx\readfiles directory.
     
     5) write a request to server(FOR EXAMPLE: write out.txt C:/512.txt octet)
-    6) select error options 00-09
+    6) select error options 00-08
     7) read a request to server (FOR EXAMPLE: read out.txt client1/read.txt octet)
-    8) select error options 00-09
+    8) select error options 00-08
 
 
 Testing:
@@ -42,13 +42,13 @@ Testing:
     1) In the client console type write written.txt C:\512.txt octet - This will write the file located at C:\512.txt to the server as written.txt
                                             under the project root directory.
                                             
-    2) Selecting TEST mode on the ErrorSim by entering 00-09 at the prompt. This will complete the request without editing 
+    2) Selecting TEST mode on the ErrorSim by entering 00-08 at the prompt. This will complete the request without editing 
        any packets being sent for this request.
     
     3) In the client console type read written.txt read.txt octet - This will read the file written.txt from the server and save it to the location
                                          client_files under the run directory with the name given.
                                          
-    4) Selecting TEST mode on the ErrorSim by entering 00-09 at the prompt. This will complete the request without editing 
+    4) Selecting TEST mode on the ErrorSim by entering 00-08 at the prompt. This will complete the request without editing 
        any packets being sent for this request.
                                          
     5) quit - Quit the client program
