@@ -5,12 +5,8 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.util.Arrays;
-import java.util.Random;
 import java.util.Scanner;
 
-import server.ServerRequest;
 import shared.Helper;
 /**
  * The Thread for the Error simulator, takes init input from the Error simulator then send the request to the server 
@@ -227,9 +223,6 @@ public class ErrorSimThread implements Runnable {
 	    	  sendUsingSocket(receivePacket);
 	      }
 		       
-		      
-		
-		
 		return true;
 	      
 	      
@@ -245,20 +238,19 @@ public class ErrorSimThread implements Runnable {
 		// Initialize the variables
 		Scanner reader = new Scanner(System.in);
 		String input;
-		byte data[] = new byte[516];
 	      
 		//Decide on the error sim
 		while(true){
 			printErrorList();
 	 	  	input = reader.nextLine();
-	 	  	if(setMode(input)){
+	 	  	if(setMode(input)) {
 	 	  		break;
-	 	  	}
-	 	  	else{
+	 	  	} else{
 	 	  		System.out.println("Incorrect input (do it again!)");
 	 	  	}
 	 	  	
 		}
+		
 		DatagramPacket sent = new DatagramPacket(initPacket.getData(), initPacket.getLength(), initPacket.getAddress(), 69);
 		sendUsingSocket(sent);
 		
@@ -267,17 +259,12 @@ public class ErrorSimThread implements Runnable {
 		
 		while(true){
 			boolean cont;
-			
-			//recandsend(serverThread, client)
 			cont = recAndSend();
-			
 			
 			if(!cont){
 				break;
 			}
 
-			
-			//recandsend(client, serverThread)
 			cont = recAndSend();
 			
 			if(!cont){
@@ -289,7 +276,6 @@ public class ErrorSimThread implements Runnable {
 	      
 
 		// We're finished, so close the sockets.
-		System.out.println("FIN");
 		sendReceiveSocket.close();
 		reader.close();
 	}

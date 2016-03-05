@@ -22,25 +22,19 @@ import java.io.*;
  * @author Team6
  */
 public class ServerResponse implements Runnable {
-    private static final int DATA_SIZE = 516;
     private static final byte RRQ = 1;
-    private static final byte WRQ = 2;
     private static final byte DATA = 3;
     private static final byte ACK = 4;
-    private static final byte EC0[] = {0, 0};
     private static final byte EC1[] = {0, 1};
     private static final byte EC2[] = {0, 2};
-    private static final byte EC3[] = {0, 3};
     private static final byte EC4[] = {0, 4};
     private static final byte EC5[] = {0, 5};
     private static final byte EC6[] = {0, 6};
-    private static final byte EC7[] = {0, 7};
     
 	private DatagramPacket initialPacket;
 	private DatagramPacket data;
 	private DatagramSocket socket;
 	
-	private int timeout = 2000;
 	
 	private InetAddress address;
 	private int port;

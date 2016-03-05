@@ -39,24 +39,17 @@ public class Client {
     private static final byte DATA_CODE[] = {0, 3};
     private static final byte ERR_CODE[] = {0, 5};
     private static final byte ACK_CODE[] = {0, 4};
-    private static final byte EC0[] = {0, 0};
-    private static final byte EC1[] = {0, 1};
-    private static final byte EC2[] = {0, 2};
-    private static final byte EC3[] = {0, 3};
     private static final byte EC4[] = {0, 4};
     private static final byte EC5[] = {0, 5};
-    private static final byte EC6[] = {0, 6};
-    private static final byte EC7[] = {0, 7};
     private static final int HOST_PORT = 68;
     private static boolean verbose = false;
     private boolean running = true;
     private InetAddress address, receiveAddress;
-    private int port, receivePort = -1;
-    private String location, mode, saveLocation;
+    private int receivePort = -1;
+    private String location, saveLocation;
     private Path folderPath;
     private int currBlock;
 
-	//TODO re add in timeout set
     
     public Client() {
         try {
@@ -198,7 +191,9 @@ public class Client {
 
         // Construct a DatagramPacket for receiving packets up
         // to 516 bytes long (the length of the byte array).
+        DatagramPacket response = sendPacket;
         while (true) {
+        	
         	byte data[] = new byte[516];
         	receivePacket = new DatagramPacket(data, data.length);
         	
@@ -207,16 +202,15 @@ public class Client {
         		cont = true;
 	        	try {
 	        		// Block until a datagram is received via sendReceiveSocket.
-	        		if(sendPacket.getPort() != HOST_PORT){
+	        		if(response.getPort() != HOST_PORT){
+	        			System.out.println(response.getPort());
 	        			sendReceiveSocket.setSoTimeout(1000);
 	        		} else {
 	        			sendReceiveSocket.setSoTimeout(0);
 	        		}
 	        		
-	        		System.out.println("HERE");
 	        		sendReceiveSocket.receive(receivePacket);
 	        		Helper.printPacketData(receivePacket, "this goddamn packet", true);
-	        		System.out.println("HERE2");
 	        		
 		    		if(currBlock == 0 && receivePacket.getData()[2] == 0){
 		    			currBlock = -1;
@@ -231,7 +225,7 @@ public class Client {
 	        	}catch(SocketTimeoutException e){
 			    	e.printStackTrace();
 			    	try {
-			            sendReceiveSocket.send(sendPacket);
+			            sendReceiveSocket.send(response);
 			        } catch (IOException e1) {
 			            e1.printStackTrace();
 			            System.exit(1);
@@ -266,7 +260,6 @@ public class Client {
         	// Check the OP Code
         	byte[] opCode = Arrays.copyOfRange(receivePacket.getData(), 0, 2);
             byte[] byteBlockNumber = Arrays.copyOfRange(receivePacket.getData(), 2, 4);
-            DatagramPacket response = null;
 
             // If the code is an ACK then we need to send the next block of data
         	if (Arrays.equals(opCode, ACK_CODE)) {
@@ -382,7 +375,6 @@ public class Client {
         buffer.write(0);
 
         this.location = location;
-        this.mode = mode;
         
         return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, HOST_PORT);
     }
