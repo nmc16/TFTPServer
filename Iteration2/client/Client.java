@@ -1,12 +1,14 @@
 package client;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
-import java.io.RandomAccessFile;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -106,30 +108,24 @@ public class Client {
      * @return returns the byte array (size 512) that holds the block parsed from the file
      */
 	public byte[] parseFile(int blockNumber) {
-        byte[] data = new byte[512];
-        int newsize;
-        long newsize2;
+        
+        char[] data = new char[512];
+        int newSize;
         
         // Only try the read if the location has been saved
 		if (location != null) {
 			try {
-				// Create an access file in read write mode
-				RandomAccessFile file = new RandomAccessFile(location, "rw");
+				File file = new File(location);
+				BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(location), "UTF-8"));
 				
-				// Skip to the beginning of the block we want to read from
-				file.seek((blockNumber - 1) * 512);
-				
-				// Read the full block and close the reader
-				if((file.length() - file.getFilePointer()) < 512 && (file.length() - file.getFilePointer()) > 0){
-					newsize2 = file.length() - file.getFilePointer();
-					newsize = (int) newsize2;
-					data = new byte[newsize];
+				if((file.length() - (blockNumber - 1) * 512) < 512 && (file.length() - (blockNumber - 1) * 512) > 0){
+					newSize = (int) file.length() - (blockNumber - 1) * 512;
+					data = new char[newSize];
 				}
-				
-				// Read the data into the byte array and return it
-				file.read(data, 0, data.length);
-				file.close();
-                return data;
+				br.skip((blockNumber - 1) * 512);
+				br.read(data, 0, data.length);
+				br.close();
+                return new String(data).getBytes();
                 
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
@@ -203,14 +199,12 @@ public class Client {
 	        	try {
 	        		// Block until a datagram is received via sendReceiveSocket.
 	        		if(response.getPort() != HOST_PORT){
-	        			System.out.println(response.getPort());
 	        			sendReceiveSocket.setSoTimeout(1000);
 	        		} else {
 	        			sendReceiveSocket.setSoTimeout(0);
 	        		}
 	        		
 	        		sendReceiveSocket.receive(receivePacket);
-	        		Helper.printPacketData(receivePacket, "this goddamn packet", true);
 	        		
 		    		if(currBlock == 0 && receivePacket.getData()[2] == 0){
 		    			currBlock = -1;
@@ -290,13 +284,13 @@ public class Client {
 
         	} else if (Arrays.equals(opCode, DATA_CODE)) {
                 // Get the data
-                byte[] transferred = Arrays.copyOfRange(receivePacket.getData(), 4, 516);
+                byte[] transferred = Arrays.copyOfRange(receivePacket.getData(), 4, receivePacket.getLength());
 
                 byte[] minimized = Helper.minimi(transferred, transferred.length);
                 writeFile(new String(minimized), new File(folderPath.toString() + "\\" + saveLocation));
                                 
                 // Check if there is more data to be read or not
-                if (transferred[transferred.length - 1] == 0) {
+                if (minimized.length < 512) {
                     // No more data to be read
                     break;
                 }

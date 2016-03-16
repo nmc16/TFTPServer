@@ -97,8 +97,6 @@ public class ServerResponse implements Runnable {
 	public void readFile() throws FileNotFoundException, SecurityException, AddressException, IllegalOPException, EPException {
 		byte[] block = {0, 0};
 		boolean flag = false;
-		int newsize;
-        long newsize2;
 
 		while(!flag) {
 			ByteArrayOutputStream reply = new ByteArrayOutputStream();
@@ -114,6 +112,7 @@ public class ServerResponse implements Runnable {
 			reply.write(block, 0, block.length);
         
 			byte[] buffer = new byte[512];
+			char[] chars = new char[512];
 			
 			File file = Helper.getFile(initialPacket);
 
@@ -124,17 +123,17 @@ public class ServerResponse implements Runnable {
                 }
 
 				try {
-					RandomAccessFile f = new RandomAccessFile(file, "r");
-					f.seek((blockNumber - 1) * 512);
-					if((f.length() - f.getFilePointer()) < 512 && (f.length() - f.getFilePointer()) > 0){
-						newsize2 = f.length() - f.getFilePointer();
-						newsize = (int) newsize2;
-						buffer = new byte[newsize];
+					BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file.getAbsolutePath()), "UTF-8"));
+					
+					if((file.length() - (blockNumber - 1) * 512) < 512 && (file.length() - (blockNumber - 1) * 512) > 0){
+						int newSize = (int) file.length() - (blockNumber - 1) * 512;
+						chars = new char[newSize];
 					}
-					int i = f.read(buffer, 0, buffer.length);
-					reply.write(buffer, 0, buffer.length);
-	                f.close();
-	                
+					br.skip((blockNumber - 1) * 512);
+					int i = br.read(chars, 0, chars.length);
+					reply.write(new String(chars).getBytes(), 0, chars.length);
+					br.close();
+      
 	                if (i < 512) {
 	                	flag = true;
 	                }
@@ -313,7 +312,7 @@ public class ServerResponse implements Runnable {
 	    	block[0] = datamin[2];
 	    	block[1] = datamin[3];
 	    	
-	    	byte[] b = Arrays.copyOfRange(datamin, 3, datamin.length);
+	    	byte[] b = Arrays.copyOfRange(datamin, 4, datamin.length);
 	    	if (datamin.length < 512) {
 	    		flag = true;
 	    	}
