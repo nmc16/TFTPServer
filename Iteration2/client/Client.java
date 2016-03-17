@@ -51,6 +51,7 @@ public class Client {
     private String location, saveLocation;
     private Path folderPath;
     private int currBlock;
+    private int timeOutCount = 0;
 
     
     public Client() {
@@ -107,14 +108,14 @@ public class Client {
      * @param blockNumber Block number to read from where 1 represents the first block in the file (byte 0)
      * @return returns the byte array (size 512) that holds the block parsed from the file
      */
-	public byte[] parseFile(int blockNumber) {
+	public byte[] parseFile(int blockNumber) throws IOException, FileNotFoundException, ExistsException{
         
         char[] data = new char[512];
         int newSize;
         
         // Only try the read if the location has been saved
 		if (location != null) {
-			try {
+			//try {
 				File file = new File(location);
 				BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(location), "UTF-8"));
 				
@@ -127,11 +128,11 @@ public class Client {
 				br.close();
                 return new String(data).getBytes();
                 
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			//} //catch (FileNotFoundException e) {
+				//e.printStackTrace();
+			//} catch (IOException e) {
+				//e.printStackTrace();
+			//}
 		}
 		
 		return null;
@@ -156,6 +157,13 @@ public class Client {
 			e.printStackTrace();
 		} 
 		
+		
+		//FileOutputStream fos = ...;
+		//fos.write("hello".getBytes());
+		//fos.getFD().sync();
+		//fos.close();
+		//The call to the sync() method will throw a SyncFailedException, when the disk is full
+		
 	}
     
 	/**
@@ -164,7 +172,7 @@ public class Client {
 	 * 
 	 * @param sendPacket Packet created for the initial request.
 	 */
-    public void sendAndReceive(DatagramPacket sendPacket) throws IllegalOPException, AddressException {
+    public void sendAndReceive(DatagramPacket sendPacket) throws IllegalOPException, AddressException, IOException, FileNotFoundException, ExistsException {
 
     	// Check that the files directory exists to store the read files into
         if (Files.notExists(folderPath)) {
@@ -189,7 +197,7 @@ public class Client {
         // to 516 bytes long (the length of the byte array).
         DatagramPacket response = sendPacket;
         while (true) {
-        	
+        	timeOutCount = 0;
         	byte data[] = new byte[516];
         	receivePacket = new DatagramPacket(data, data.length);
         	
@@ -219,7 +227,14 @@ public class Client {
 	        	}catch(SocketTimeoutException e){
 			    	e.printStackTrace();
 			    	try {
-			            sendReceiveSocket.send(response);
+			    		if(timeOutCount < 5){
+			    			timeOutCount++;
+			    			sendReceiveSocket.send(response);
+			    		}
+			    		else{
+			    			System.out.println("Timed out to many times, exiting...");
+			    			break;
+			    		}
 			        } catch (IOException e1) {
 			            e1.printStackTrace();
 			            System.exit(1);
@@ -300,8 +315,9 @@ public class Client {
             } else if (Arrays.equals(opCode, ERR_CODE)) {
             	// Quit the program and display message
             	Helper.printPacketData(receivePacket, "Client: Error Packet Receieved", true);
-            	running = false;
-            	return;
+            	//running = false;
+            	break;
+            	//return;
             } else {
             	Helper.printPacketData(receivePacket, "Client Ecountered Error Packet", true);
             	throw new IllegalOPException("Illegal opCode");
@@ -402,7 +418,7 @@ public class Client {
      * 
      * @param args Arguments passed from UI
      */
-    private void runCommand(String args[]) throws IllegalOPException, AddressException {
+    private void runCommand(String args[]) throws IllegalOPException, AddressException, FileNotFoundException, IOException, ExistsException {
     	currBlock = 0;
     	
         if (args[0].toLowerCase().equals("help")) {
@@ -481,7 +497,15 @@ public class Client {
                     	
                     } catch (AddressException e) {
                 		sendERRPacket(EC5, address, e.getMessage(), receivePort); 
-                	}
+                	} catch (FileNotFoundException e) {
+                		//TODO must send it back to start of client
+        				//System.out.println("TESTING IF GOT TO THE TOP");
+                		e.printStackTrace();
+        			} catch (IOException e) {
+        				e.printStackTrace();
+        			} catch (ExistsException e){
+        				e.printStackTrace();
+        			}
                 }
             } else {
                 System.out.println("Instruction invalid length!");

@@ -202,6 +202,7 @@ public class ErrorSimThread implements Runnable {
 	      
 	      if(receivePacket.getData()[1] == 5){
 	    	  System.out.println("error");
+	    	  sendUsingSocket(receivePacket);
 	    	  return false;
 	      }
 	      

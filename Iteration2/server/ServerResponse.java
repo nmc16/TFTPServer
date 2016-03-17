@@ -39,6 +39,7 @@ public class ServerResponse implements Runnable {
 	private InetAddress address;
 	private int port;
 	private int currDataBlock=-1, currACKBlock=-1;
+	private int timeOutCount = 0;
 	
 	//TODO re add in timeout set
 	
@@ -163,7 +164,9 @@ public class ServerResponse implements Runnable {
 		    	DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
 			    
 		    	boolean cont = false;
+		    	timeOutCount = 0;
 		    	while(!cont){
+		    		
 		    		cont = true;
 		    		try {
 		    			socket.setSoTimeout(1000);
@@ -186,8 +189,14 @@ public class ServerResponse implements Runnable {
 				    	
 				    	//SEND the PACKET
 					    try {
-					    	System.out.println("send again");
-					        socket.send(responseData);
+					    	if(timeOutCount <= 5){
+					    		timeOutCount++;
+					    		System.out.println("send again");
+					    		socket.send(responseData);
+					    	}
+					    	else{
+					    		System.out.println("Timed out to many times, exiting thread...");
+					    	}
 					    } catch (IOException e1) {
 					        e1.printStackTrace();
 					    }
@@ -275,15 +284,23 @@ public class ServerResponse implements Runnable {
 		    		
 		    		
 		    	}catch(SocketTimeoutException e){
-			    	e.printStackTrace();
-			    	//SEND the PACKET
-				    //try {
-				        //socket.send(responseData);
-				    //} catch (IOException e1) {
-				      //  e1.printStackTrace();
-				    //}
-				    //try again
-				    cont = false;
+			    	if(timeOutCount <= 5){
+			    		e.printStackTrace();
+				    	//SEND the PACKET
+				    	// TODO get this to send again???????????????
+					    //try {
+					        //socket.send(responseData);
+					    //} catch (IOException e1) {
+					      //  e1.printStackTrace();
+					    //}
+					    //try again
+					    cont = false;
+					    timeOutCount ++;
+			    	}
+			    	else{
+			    		System.out.println("Timed out to many times, Exit Thread...");
+			    		break;
+			    	}
 			    } catch (IOException e) {
 		    		e.printStackTrace();
 		    	}

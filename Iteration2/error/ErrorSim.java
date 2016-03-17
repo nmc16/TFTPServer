@@ -36,6 +36,9 @@ public class ErrorSim {
 		byte data[] = new byte[516];
       
 		while(shall){
+			
+			System.out.println("MAKING A ERRORSIMTHREAD");
+			
 			receivePacket = new DatagramPacket(data, data.length);
 			System.out.println("Intermediate: Waiting for Packet.\n");
 	
