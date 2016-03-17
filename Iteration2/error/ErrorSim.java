@@ -3,6 +3,7 @@ package error;
 import java.io.*;
 import java.net.*;
 import java.util.Arrays;
+import java.util.Scanner;
 
 import shared.Helper;
 /**
@@ -15,6 +16,7 @@ public class ErrorSim {
 
 	private DatagramPacket receivePacket;
 	private DatagramSocket receiveSocket;
+	private static final Scanner READER = new Scanner(System.in);
    
 	public static boolean shall = true;
    
@@ -61,10 +63,10 @@ public class ErrorSim {
 			System.out.println("Containing: " + new String(receivePacket.getData()));
 			System.out.println("In bytes " + Arrays.toString(datamin) + "\n\n");
 	      
-			Thread t = new Thread(new ErrorSimThread(receivePacket));
+			Thread t = new Thread(new ErrorSimThread(receivePacket, READER));
 			t.start();
 		}
-      
+        READER.close();
 		receiveSocket.close();
 	}
 	

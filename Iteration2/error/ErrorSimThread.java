@@ -19,6 +19,7 @@ public class ErrorSimThread implements Runnable {
 	private DatagramSocket sendReceiveSocket;
 	private DatagramSocket errorSendSocket;
 	private DatagramPacket initPacket;
+	private final Scanner reader;
 	private int clientPort;
 	private int serverPort = -1;
 	private int packCount = 0;
@@ -27,9 +28,10 @@ public class ErrorSimThread implements Runnable {
 	private String mode = "00";
 	private boolean errSocket = false, delayPacket = false, duplicate = false, lost = false;
 	
-	public ErrorSimThread(DatagramPacket packet) {
+	public ErrorSimThread(DatagramPacket packet, Scanner reader) {
 		this.clientPort = packet.getPort();
 		this.initPacket= packet;
+		this.reader = reader;
 		try {
 			sendReceiveSocket = new DatagramSocket();
 			errorSendSocket = new DatagramSocket();
@@ -203,6 +205,7 @@ public class ErrorSimThread implements Runnable {
 	      if(receivePacket.getData()[1] == 5){
 	    	  System.out.println("error");
 	    	  sendUsingSocket(receivePacket);
+	    	  //reader.close();
 	    	  return false;
 	      }
 	      
@@ -236,12 +239,11 @@ public class ErrorSimThread implements Runnable {
 	@Override
 	public void run() {
 		// Initialize the variables
-		Scanner reader = new Scanner(System.in);
 		String input;
 	      
 		//Decide on the error sim
 		while(true){
-			printErrorList();
+			printErrorList();			
 	 	  	input = reader.nextLine();
 	 	  	if(setMode(input)) {
 	 	  		break;
@@ -276,8 +278,8 @@ public class ErrorSimThread implements Runnable {
 	      
 
 		// We're finished, so close the sockets.
+		System.out.println("CLOSING!!!!!");
 		sendReceiveSocket.close();
-		reader.close();
 	}
 	
 }

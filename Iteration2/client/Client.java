@@ -316,8 +316,8 @@ public class Client {
             	// Quit the program and display message
             	Helper.printPacketData(receivePacket, "Client: Error Packet Receieved", true);
             	//running = false;
-            	break;
             	//return;
+            	break;
             } else {
             	Helper.printPacketData(receivePacket, "Client Ecountered Error Packet", true);
             	throw new IllegalOPException("Illegal opCode");
