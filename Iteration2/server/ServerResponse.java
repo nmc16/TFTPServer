@@ -27,6 +27,7 @@ public class ServerResponse implements Runnable {
     private static final byte ACK = 4;
     private static final byte EC1[] = {0, 1};
     private static final byte EC2[] = {0, 2};
+    private static final byte EC3[] = {0, 3};
     private static final byte EC4[] = {0, 4};
     private static final byte EC5[] = {0, 5};
     private static final byte EC6[] = {0, 6};
@@ -41,12 +42,24 @@ public class ServerResponse implements Runnable {
 	private int currDataBlock=-1, currACKBlock=-1;
 	private int timeOutCount = 0;
 	
+	
+	private int opType;
+	private String currFile;
+	
 	//TODO re add in timeout set
 	
 	
 	public ServerResponse(DatagramPacket data) {
 		this.initialPacket = data;
 		this.data = data;
+		
+		if (initialPacket.getData()[1] == RRQ) {
+			opType = 1;
+		} else {
+			opType = 2;
+		}
+		
+		currFile = Helper.getFile(initialPacket).getName();
 		
 	    try {
 	    	Random r = new Random();
@@ -57,6 +70,15 @@ public class ServerResponse implements Runnable {
 	    } catch (IOException e) {
 	        e.printStackTrace();
 	    }
+	}
+	
+	
+	public int getOpType(){
+		return opType;
+	}
+	
+	public String getCurrFile(){
+		return currFile;
 	}
     
     /**
@@ -95,7 +117,7 @@ public class ServerResponse implements Runnable {
 	 * 
 	 * @throws IllegalOPException 
 	 */
-	public void readFile() throws FileNotFoundException, SecurityException, AddressException, IllegalOPException, EPException {
+	public void readFile() throws FileNotFoundException, SecurityException, AddressException, IllegalOPException, EPException, IOException {
 		byte[] block = {0, 0};
 		boolean flag = false;
 
@@ -169,7 +191,7 @@ public class ServerResponse implements Runnable {
 		    		
 		    		cont = true;
 		    		try {
-		    			socket.setSoTimeout(1000);
+		    			socket.setSoTimeout(4000);//TODO set back to 1000 (4000 for testing)
 			    		socket.receive(receivePacket);
 			    		data = receivePacket;
 			    		
@@ -227,7 +249,7 @@ public class ServerResponse implements Runnable {
 	 * for write requests, send data packet for the client to wrote 2 512 bytes at a time
 	 * @throws IllegalOPException 
 	 */
-	public void writeToFile() throws SecurityException, IllegalOPException, ExistsException, EPException, AddressException {
+	public void writeToFile() throws SecurityException, IllegalOPException, ExistsException, EPException, AddressException, IOException {
         File file = Helper.getFile(initialPacket);
         Helper.createFile(file);
 
@@ -268,7 +290,7 @@ public class ServerResponse implements Runnable {
 	    	while(!cont){
 	    		cont = true;	
 	    		try {
-	    			socket.setSoTimeout(1000);
+	    			socket.setSoTimeout(4000);// TODO set back to 1000
 		    		socket.receive(receivePacket);
 		    		data = receivePacket;
 		    		
@@ -357,6 +379,8 @@ public class ServerResponse implements Runnable {
 	    		sendERRPacket(EC1, address, e.getMessage(), port);
 	    	} catch (SecurityException e) {
 	    		sendERRPacket(EC2, address, e.getMessage(), port);
+	    	} catch (IOException e) {
+	    		sendERRPacket(EC3, address, e.getMessage(), port);
 	    	} catch (IllegalOPException e) {
 	    		sendERRPacket(EC4, address, e.getMessage(), port);
 	    	} catch (AddressException e) {
@@ -369,6 +393,8 @@ public class ServerResponse implements Runnable {
 	    		writeToFile();
 	    	} catch (SecurityException e) {
 	    		sendERRPacket(EC2, address, e.getMessage(), port);
+	    	} catch (IOException e) {
+	    		sendERRPacket(EC3, address, e.getMessage(), port);
 	    	} catch (IllegalOPException e) {
 	    		sendERRPacket(EC4, address, e.getMessage(), port);
 	    	} catch (AddressException e) {

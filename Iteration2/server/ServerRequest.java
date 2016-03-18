@@ -2,6 +2,7 @@ package server;
 
 import shared.Helper;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -24,9 +25,11 @@ public class ServerRequest implements Runnable {
     private DatagramPacket receivePacket;
     private DatagramSocket receiveSocket;
     private ArrayList<Thread> openRequests;
+    private ArrayList<String> filesInUse;
 
     public ServerRequest() {
         openRequests = new ArrayList<Thread>();
+        filesInUse = new ArrayList<String>();
 
         try {
             receiveSocket = new DatagramSocket(69);
@@ -92,6 +95,20 @@ public class ServerRequest implements Runnable {
         
         return q == 2;
     }
+    
+    public boolean allowAccess(DatagramPacket packet){
+    	//File file = Helper.getFile(initialPacket)
+    	for(String fileName: filesInUse){//CHANGE TO .lentgh format and make sure corresponding thread is still running
+    		//if file already being used
+    		//System.out.println("List file: " + fileName + " passed file: " + Helper.getFile(packet).getName());
+    		if(fileName == Helper.getFile(packet).getName()){
+    			return false;
+    		}
+    	}
+    	
+    	return true;
+    	
+    }
 
     @Override
     public void run() {
@@ -109,21 +126,31 @@ public class ServerRequest implements Runnable {
                 // Minimize the data
                 int len = receivePacket.getLength();
                 mydata = Helper.minimi(data, len);
-
-                // Verify the data
-                if(verify(mydata)){
-                    // Print out the data on the received package
-                    Helper.printPacketData(receivePacket, "Server", ServerSettings.verbose);
-                    Thread clientThread = new Thread(new ServerResponse(receivePacket));
-                    clientThread.start();
-                    openRequests.add(clientThread);
+                
+                if(allowAccess(receivePacket)){
+                	
+	                // Verify the data
+	                if(verify(mydata)){
+	                    // Print out the data on the received package
+	                    Helper.printPacketData(receivePacket, "Server", ServerSettings.verbose);
+	                    Thread clientThread = new Thread(new ServerResponse(receivePacket));
+	                    clientThread.start();
+	                    openRequests.add(clientThread);
+	                    filesInUse.add(Helper.getFile(receivePacket).getName());
+	                } else{
+	                    //terminate the program
+	                    System.out.println("\nReceived invalid request! Not allowing request to be performed.");
+	                    Helper.printPacketData(receivePacket, "Server Request Thread: Invalid Request", true);
+	                    ServerResponse response = new ServerResponse(receivePacket);
+	                    byte[] errcode = {0, 4};
+	                    response.sendERRPacket(errcode, receivePacket.getAddress(), "Invalid data request", receivePacket.getPort());
+	                }
                 } else{
-                    //terminate the program
-                    System.out.println("\nReceived invalid request! Not allowing request to be performed.");
-                    Helper.printPacketData(receivePacket, "Server Request Thread: Invalid Request", true);
-                    ServerResponse response = new ServerResponse(receivePacket);
-                    byte[] errcode = {0, 4};
-                    response.sendERRPacket(errcode, receivePacket.getAddress(), "Invalid data request", receivePacket.getPort());
+            	 	System.out.println("\n access denied! File in use");
+            	 	Helper.printPacketData(receivePacket, "Server Request Thread: Sercurity declined", true);
+            	 	ServerResponse response = new ServerResponse(receivePacket);
+            	 	byte[] errcode = {0, 2};
+                    response.sendERRPacket(errcode, receivePacket.getAddress(), "Sercurity declined", receivePacket.getPort());
                 }
 
             } catch (SocketTimeoutException e) {
@@ -134,11 +161,13 @@ public class ServerRequest implements Runnable {
                 e.printStackTrace();
                 System.exit(1);
             }
-
+            int index;
             ArrayList<Thread> copy = new ArrayList<Thread>(openRequests);
             for (Thread t : copy) {
                 if (!t.isAlive()) {
-                    openRequests.remove(copy.indexOf(t));
+                    index = copy.indexOf(t);
+                	openRequests.remove(index);
+                    filesInUse.remove(index);
                 }
             }
         }
