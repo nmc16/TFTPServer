@@ -1,4 +1,4 @@
-Project Iteration 3:
+Project Iteration 4:
 
 Authors:
 	Nic McCallum
@@ -81,8 +81,8 @@ Testing:
     	6) Client sends read request -> Server Responds -> ErrorSim edits the OP code -> client closes and sends error packet to server -> 
     	   Server closes request thread. 
     Breakdown:
-    	Niko: Coding
-        Abbas: Coding
-        Nic: Testing, Timing Diagrams
-        Kevin: Testing, Timing Diagrams
+    	Niko: Coding, Testing
+        Abbas: Coding, Timing Diagrams
+        Nic: Testing, Coding
+        Kevin: Timing Diagrams, Testing
     	
