@@ -2,15 +2,18 @@ package server;
 
 import java.util.Scanner;
 
+
 /**
  * Main server.Server program, takes in requests from intermediate host threads and makes a corresponding server thread
  *
  */
 public class Server {
-
+	
+	
     public Server() {
         ServerSettings.stopRequests = false;
         ServerSettings.verbose = false;
+        
     }
 
     /**

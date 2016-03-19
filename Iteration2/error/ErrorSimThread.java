@@ -278,7 +278,6 @@ public class ErrorSimThread implements Runnable {
 	      
 
 		// We're finished, so close the sockets.
-		System.out.println("CLOSING!!!!!");
 		sendReceiveSocket.close();
 	}
 	

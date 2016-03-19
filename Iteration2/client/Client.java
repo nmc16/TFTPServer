@@ -41,8 +41,12 @@ public class Client {
     private static final byte DATA_CODE[] = {0, 3};
     private static final byte ERR_CODE[] = {0, 5};
     private static final byte ACK_CODE[] = {0, 4};
+    private static final byte EC1[] = {0, 1};
+    private static final byte EC2[] = {0, 2};
+    private static final byte EC3[] = {0, 3};
     private static final byte EC4[] = {0, 4};
     private static final byte EC5[] = {0, 5};
+    private static final byte EC6[] = {0, 6};
     private static final int HOST_PORT = 68;
     private static boolean verbose = false;
     private boolean running = true;
@@ -197,6 +201,15 @@ public class Client {
         // to 516 bytes long (the length of the byte array).
         DatagramPacket response = sendPacket;
         while (true) {
+        	
+        	//HERE FOR TESTING ACCESS/ TO SLOW CLIENT DOWN
+        	try {
+				Thread.sleep(3000);
+			} catch (InterruptedException e2) {
+				// TODO Auto-generated catch block
+				e2.printStackTrace();
+			}
+        	
         	timeOutCount = 0;
         	byte data[] = new byte[516];
         	receivePacket = new DatagramPacket(data, data.length);
@@ -207,7 +220,7 @@ public class Client {
 	        	try {
 	        		// Block until a datagram is received via sendReceiveSocket.
 	        		if(response.getPort() != HOST_PORT){
-	        			sendReceiveSocket.setSoTimeout(1000);
+	        			sendReceiveSocket.setSoTimeout(4000);//TODO set back to 1000
 	        		} else {
 	        			sendReceiveSocket.setSoTimeout(0);
 	        		}
@@ -500,11 +513,17 @@ public class Client {
                 	} catch (FileNotFoundException e) {
                 		//TODO must send it back to start of client
         				//System.out.println("TESTING IF GOT TO THE TOP");
-                		e.printStackTrace();
+                		//e.printStackTrace();
+                		sendERRPacket(EC1, address, e.getMessage(), receivePort);
         			} catch (IOException e) {
-        				e.printStackTrace();
+        				//e.printStackTrace();
+        				sendERRPacket(EC3, address, e.getMessage(), receivePort);
         			} catch (ExistsException e){
-        				e.printStackTrace();
+        				//e.printStackTrace();
+        				sendERRPacket(EC6, address, e.getMessage(), receivePort);
+        			} catch (SecurityException e){
+        				//e.printStackTrace();
+        				sendERRPacket(EC2, address, e.getMessage(), receivePort);
         			}
                 }
             } else {
