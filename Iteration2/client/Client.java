@@ -8,20 +8,18 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.file.Files;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
 
 import java.net.SocketTimeoutException;
 import exception.AddressException;
+import exception.EPException;
 import exception.ExistsException;
 import exception.IllegalOPException;
 import shared.Helper;
@@ -53,7 +51,6 @@ public class Client {
     private InetAddress address, receiveAddress;
     private int receivePort = -1;
     private String location, saveLocation;
-    private Path folderPath;
     private int currBlock;
     private int timeOutCount = 0;
 
@@ -64,7 +61,6 @@ public class Client {
             Random r = new Random();
             this.address = InetAddress.getLocalHost();
             sendReceiveSocket = new DatagramSocket(r.nextInt(65553));
-            folderPath = Paths.get("client_files");
         } catch (SocketException se) { 
             se.printStackTrace();
             System.exit(1);
@@ -149,7 +145,7 @@ public class Client {
 	 * @param data Data to write to file
 	 * @param file File to append data into
 	 */
-	public void writeFile(String data, File file) {
+	public void writeFile(String data, File file) throws IOException {
 		try {
 			// Open a file writer in append mode
 			FileWriter fw = new FileWriter(file, true);
@@ -158,15 +154,8 @@ public class Client {
 			fw.write(data);
 			fw.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw e;
 		} 
-		
-		
-		//FileOutputStream fos = ...;
-		//fos.write("hello".getBytes());
-		//fos.getFD().sync();
-		//fos.close();
-		//The call to the sync() method will throw a SyncFailedException, when the disk is full
 		
 	}
     
@@ -176,15 +165,7 @@ public class Client {
 	 * 
 	 * @param sendPacket Packet created for the initial request.
 	 */
-    public void sendAndReceive(DatagramPacket sendPacket) throws IllegalOPException, AddressException, IOException, FileNotFoundException, ExistsException {
-
-    	// Check that the files directory exists to store the read files into
-        if (Files.notExists(folderPath)) {
-        	if (!folderPath.toFile().mkdir()) {
-        		System.out.println("Cannot make directory!");
-        		System.exit(1);
-        	}
-        }
+    public void sendAndReceive(DatagramPacket sendPacket) throws IllegalOPException, AddressException, IOException, FileNotFoundException, ExistsException, EPException {
         
         //Print out the info on the packet
     	Helper.printPacketData(sendPacket, "Client: Sending packet", verbose);
@@ -201,15 +182,6 @@ public class Client {
         // to 516 bytes long (the length of the byte array).
         DatagramPacket response = sendPacket;
         while (true) {
-        	
-        	//HERE FOR TESTING ACCESS/ TO SLOW CLIENT DOWN
-        	try {
-				Thread.sleep(3000);
-			} catch (InterruptedException e2) {
-				// TODO Auto-generated catch block
-				e2.printStackTrace();
-			}
-        	
         	timeOutCount = 0;
         	byte data[] = new byte[516];
         	receivePacket = new DatagramPacket(data, data.length);
@@ -220,12 +192,16 @@ public class Client {
 	        	try {
 	        		// Block until a datagram is received via sendReceiveSocket.
 	        		if(response.getPort() != HOST_PORT){
-	        			sendReceiveSocket.setSoTimeout(4000);//TODO set back to 1000
+	        			sendReceiveSocket.setSoTimeout(1000);
 	        		} else {
 	        			sendReceiveSocket.setSoTimeout(0);
 	        		}
 	        		
 	        		sendReceiveSocket.receive(receivePacket);
+	        		
+	        		if (receivePacket.getData()[0] == 0 && receivePacket.getData()[1] == 5) {
+				    	throw new EPException("Error packet received from Client!", receivePacket);
+					}
 	        		
 		    		if(currBlock == 0 && receivePacket.getData()[2] == 0){
 		    			currBlock = -1;
@@ -315,7 +291,7 @@ public class Client {
                 byte[] transferred = Arrays.copyOfRange(receivePacket.getData(), 4, receivePacket.getLength());
 
                 byte[] minimized = Helper.minimi(transferred, transferred.length);
-                writeFile(new String(minimized), new File(folderPath.toString() + "\\" + saveLocation));
+                writeFile(new String(minimized), new File(saveLocation));
                                 
                 // Check if there is more data to be read or not
                 if (minimized.length < 512) {
@@ -431,7 +407,7 @@ public class Client {
      * 
      * @param args Arguments passed from UI
      */
-    private void runCommand(String args[]) throws IllegalOPException, AddressException, FileNotFoundException, IOException, ExistsException {
+    private void runCommand(String args[]) throws IllegalOPException, AddressException, FileNotFoundException, IOException, ExistsException, EPException {
     	currBlock = 0;
     	
         if (args[0].toLowerCase().equals("help")) {
@@ -446,13 +422,15 @@ public class Client {
             }
             DatagramPacket packet = createPacket(READ_CODE, args[1], args[3]);
             saveLocation = args[2];
-    		File file = new File(folderPath.toString() + "\\" + saveLocation);
-            try {
-            	// Check if there are slashes, which indicates directories
-                Helper.createSubDirectories(folderPath.toString() + "\\" + saveLocation);
+    		File file = new File(saveLocation);
+    		
+    		try {
+    			// Check if there are slashes, which indicates directories
+    			Helper.createSubDirectories(saveLocation);
     			Helper.createFile(file);
     		} catch (ExistsException e) {
-    			e.printStackTrace();
+    			System.err.println(e.getCause() + ": " + e.getMessage());
+    			return;
     		}
             
             sendAndReceive(packet);
@@ -507,23 +485,18 @@ public class Client {
                     	
                     } catch(IllegalOPException e){
                     	sendERRPacket(EC4, address, e.getMessage(), receivePort);
-                    	
                     } catch (AddressException e) {
                 		sendERRPacket(EC5, address, e.getMessage(), receivePort); 
                 	} catch (FileNotFoundException e) {
-                		//TODO must send it back to start of client
-        				//System.out.println("TESTING IF GOT TO THE TOP");
-                		//e.printStackTrace();
                 		sendERRPacket(EC1, address, e.getMessage(), receivePort);
         			} catch (IOException e) {
-        				//e.printStackTrace();
         				sendERRPacket(EC3, address, e.getMessage(), receivePort);
         			} catch (ExistsException e){
-        				//e.printStackTrace();
         				sendERRPacket(EC6, address, e.getMessage(), receivePort);
         			} catch (SecurityException e){
-        				//e.printStackTrace();
         				sendERRPacket(EC2, address, e.getMessage(), receivePort);
+        			} catch (EPException e) {
+        				Helper.printPacketData(receivePacket, "Client: Error Packet Receieved", true);
         			}
                 }
             } else {

@@ -10,6 +10,8 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketTimeoutException;
+import java.security.AccessControlException;
+import java.security.AccessController;
 import java.util.Arrays;
 import java.util.Random;
 import java.io.*;
@@ -140,8 +142,15 @@ public class ServerResponse implements Runnable {
 			File file = Helper.getFile(initialPacket);
 
 			if (file.exists()) {
+				FilePermission fp = new FilePermission(file.getAbsolutePath(), "read");
+				try {
+					AccessController.checkPermission(fp);
+				} catch (AccessControlException e) {
+					throw new SecurityException("Access Denied: File " + file.getAbsolutePath() + " does not have" +
+                            " read access");
+				}
                 if (!file.canRead()) {
-                    throw new SecurityException("Access Denied: File " + file.getAbsolutePath() + "does not have" +
+                    throw new SecurityException("Access Denied: File " + file.getAbsolutePath() + " does not have" +
                                                 " read access");
                 }
 
@@ -162,10 +171,11 @@ public class ServerResponse implements Runnable {
 	                }
 	                
 				} catch (IOException e) {
-					e.printStackTrace();
+					throw new SecurityException("Access Denied: File " + file.getAbsolutePath() + " does not have" +
+                            " read access");
 				}
 			} else {
-				break;
+				throw new FileNotFoundException("File does not exist on server");
 			}
 			
 			//Construct a new packet
@@ -191,16 +201,26 @@ public class ServerResponse implements Runnable {
 		    		
 		    		cont = true;
 		    		try {
-		    			socket.setSoTimeout(4000);//TODO set back to 1000 (4000 for testing)
+		    			socket.setSoTimeout(1000);
 			    		socket.receive(receivePacket);
 			    		data = receivePacket;
 			    		
+			    		if (data.getData()[0] == 0 && data.getData()[1] == 5) {
+				    		throw new EPException("Error packet received from Client!", receivePacket);
+				    	}
+				    	if(data.getData()[0] != 0 || data.getData()[1] != 4){
+					    	throw new IllegalOPException("Not vaild ACK OpCode");
+					    }
+				    	if(data.getPort() != this.port || !data.getAddress().equals(this.address)){
+				    		throw new AddressException("Unknown TID/Address");
+				    	}
+				    	
 			    		if(currDataBlock == -1){
 			    			currDataBlock = data.getData()[2];
 			    		} else if(currDataBlock+1 == data.getData()[2]){
 			    			currDataBlock = data.getData()[2];
 			    			
-			    		} else{
+			    		} else {
 			    			// if not expected packet ignore and keep waiting
 			    			cont = false;
 			    		}
@@ -213,11 +233,12 @@ public class ServerResponse implements Runnable {
 					    try {
 					    	if(timeOutCount <= 5){
 					    		timeOutCount++;
-					    		System.out.println("send again");
+					    		System.out.println("Server timed out, resending (attempts left: " + timeOutCount + ")...");
 					    		socket.send(responseData);
 					    	}
 					    	else{
 					    		System.out.println("Timed out to many times, exiting thread...");
+					    		break;
 					    	}
 					    } catch (IOException e1) {
 					        e1.printStackTrace();
@@ -231,16 +252,6 @@ public class ServerResponse implements Runnable {
 			    		e.printStackTrace();
 			    	}
 			    }
-		    	
-		    	if (data.getData()[0] == 0 && data.getData()[1] == 5) {
-		    		throw new EPException("Error packet received from Client!", receivePacket);
-		    	}
-		    	if(data.getData()[0] != 0 || data.getData()[1] != 4){
-			    	throw new IllegalOPException("Not vaild ACK OpCode");
-			    }
-		    	if(data.getPort() != this.port || !data.getAddress().equals(this.address)){
-		    		throw new AddressException("Unknown TID/Address");
-		    	}
 		    }
 		} 
 	}
@@ -294,6 +305,19 @@ public class ServerResponse implements Runnable {
 		    		socket.receive(receivePacket);
 		    		data = receivePacket;
 		    		
+		    		if (data.getData()[0] == 0 && data.getData()[1] == 5) {
+				    	throw new EPException("Error packet received from Client!", receivePacket);
+					} else if(data.getData()[0] != 0 ||data.getData()[1] != 3){
+				    	throw new IllegalOPException("Not vaild DATA OpCode");
+				    }
+		    		
+			    	if(!data.getAddress().equals(this.address)){
+			    		throw new AddressException("unknown Transfer Id");
+			    	}
+			    	if(data.getPort() != this.port){
+			    		throw new AddressException("unknown Port");
+			    	}
+			    	
 		    		if(currACKBlock == -1){
 		    			currACKBlock = data.getData()[2];
 		    		} else if(currACKBlock+1 == data.getData()[2]){
@@ -333,21 +357,6 @@ public class ServerResponse implements Runnable {
 	    	//print out the data on the sent packet
 	    	Helper.printPacketData(receivePacket, "Server (" + socket.getLocalPort() + "): Received Packet", ServerSettings.verbose);
 		    
-		    if (datamin[0] == 0 && datamin[1] == 5) {
-		    	throw new EPException("Error packet received from Client!", receivePacket);
-			} else if(datamin[0] != 0 || datamin[1] != 3){
-		    	throw new IllegalOPException("Not vaild DATA OpCode");
-		    }
-		    if (data.getData()[0] == 0 && data.getData()[1] == 5) {
-	    		throw new EPException("Error packet received from Client!", receivePacket);
-	    	}
-	    	if(!data.getAddress().equals(this.address)){
-	    		throw new AddressException("unknown Transfer Id");
-	    	}
-	    	if(data.getPort() != this.port){
-	    		throw new AddressException("unknown Port");
-	    	}
-		    
 	    	block[0] = datamin[2];
 	    	block[1] = datamin[3];
 	    	
@@ -358,14 +367,10 @@ public class ServerResponse implements Runnable {
 	    	
 	    	String contents = new String(b);
 	    	
-	    	try {
-				FileWriter fw = new FileWriter(file, true);
-				fw.write(contents);
+			FileWriter fw = new FileWriter(file, true);
+			fw.write(contents);
 				
-				fw.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			} 
+			fw.close();
 		}
 	}
 
@@ -405,7 +410,5 @@ public class ServerResponse implements Runnable {
             	Helper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() + "): Received Error Packet Shutting down", true);
             }
 	    }
-	    
-	    System.out.println("FIN");
 	}
 }

@@ -187,9 +187,7 @@ public class ErrorSimThread implements Runnable {
 	      }
 	      
 	      Helper.printPacketData(receivePacket, "ErrorSim Received Packet", true);
-	      
-	      //check
-	      
+	      	      
 	      if(receivePacket.getPort() == serverPort){
 	    	  	receivePacket = new DatagramPacket(receivePacket.getData(), receivePacket.getLength(), receivePacket.getAddress(), clientPort);
 	      } else {
@@ -203,9 +201,8 @@ public class ErrorSimThread implements Runnable {
 	      }
 	      
 	      if(receivePacket.getData()[1] == 5){
-	    	  System.out.println("error");
+	    	  Helper.printPacketData(receivePacket, "ErrorSim Sending Error Packet", true);
 	    	  sendUsingSocket(receivePacket);
-	    	  //reader.close();
 	    	  return false;
 	      }
 	      
@@ -213,7 +210,7 @@ public class ErrorSimThread implements Runnable {
 	      
 	      //send
 	      if(lost){
-	    	  System.out.println("lost packet");
+	    	  System.out.println("Packet Lost");
 	    	  lost = false;
 	    	  //recAndSend();
 	      } else if(duplicate){
@@ -273,9 +270,6 @@ public class ErrorSimThread implements Runnable {
 				break;
 			}
 		}
-	 	  
-	      
-	      
 
 		// We're finished, so close the sockets.
 		sendReceiveSocket.close();

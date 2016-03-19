@@ -37,17 +37,13 @@ public class ErrorSim {
 		// Initialize the variables
 		byte data[] = new byte[516];
       
-		while(shall){
-			
-			System.out.println("MAKING A ERRORSIMTHREAD");
-			
+		while(shall){			
 			receivePacket = new DatagramPacket(data, data.length);
 			System.out.println("Intermediate: Waiting for Packet.\n");
 	
 			// Block until a datagram packet is received from receiveSocket.
 			try {        
 				receiveSocket.receive(receivePacket);
-				System.out.println("new thread");
 			} catch (IOException e) {
 				e.printStackTrace();
 				System.exit(1);
