@@ -1,28 +1,28 @@
 package client;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
 
 import java.net.SocketTimeoutException;
-import exception.AddressException;
-import exception.EPException;
-import exception.ExistsException;
-import exception.IllegalOPException;
-import shared.Helper;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import exception.*;
+import shared.DataHelper;
+import shared.ErrorCodes;
+import shared.FileHelper;
+import shared.OpCodes;
 
 /**
  * Client program that connects through the error detector to connect to the server
@@ -32,250 +32,144 @@ import shared.Helper;
  * @author Team6
  */
 public class Client {
+    private static final int ERROR_SIM_PORT = 68;
+    private final Logger LOG;
     private DatagramPacket receivePacket;
     private DatagramSocket sendReceiveSocket;
-    private static final byte READ_CODE[] = {0, 1};
-    private static final byte WRITE_CODE[] = {0, 2};
-    private static final byte DATA_CODE[] = {0, 3};
-    private static final byte ERR_CODE[] = {0, 5};
-    private static final byte ACK_CODE[] = {0, 4};
-    private static final byte EC1[] = {0, 1};
-    private static final byte EC2[] = {0, 2};
-    private static final byte EC3[] = {0, 3};
-    private static final byte EC4[] = {0, 4};
-    private static final byte EC5[] = {0, 5};
-    private static final byte EC6[] = {0, 6};
-    private static final int HOST_PORT = 68;
-    private static boolean verbose = false;
-    private boolean running = true;
+    private String saveLocation;
     private InetAddress address, receiveAddress;
+    private boolean verbose = false;
     private int receivePort = -1;
-    private String location, saveLocation;
     private int currBlock;
-    private int timeOutCount = 0;
-
     
     public Client() {
+        // Config the logger if it hasn't been already and
+        DataHelper.configLogger();
+        LOG = Logger.getLogger("global");
+
         try {
         	// Randomize a port number and create the socket
             Random r = new Random();
             this.address = InetAddress.getLocalHost();
             sendReceiveSocket = new DatagramSocket(r.nextInt(65553));
         } catch (SocketException se) { 
-            se.printStackTrace();
+            LOG.log(Level.SEVERE, se.getMessage(), se);
             System.exit(1);
         } catch (UnknownHostException e) {
-            e.printStackTrace();
+            LOG.log(Level.SEVERE, e.getMessage(), e);
             System.exit(1);
         }
     }
-    
+
     /**
-     * Creates datagram error packet using information passed.
-     * 
-     * @param errCode 2 byte Error Code
-     * @param address to send to the Error Packet to
-     * @param port port to send Packet to
+     * Waits to receive a packet with a timeout that if it is received it resends the DatagramPacket passed
+     * to the method. Method does not use a timeout for the intial request packet sent.
+     *
+     * @param timeOutCount counter to show attempts remaining
+     * @param response DatagramPacket to resend if the receives times out
+     * @return true if the packet was received correctly, false if it needs to be re-run
+     * @throws IOException thrown if there is an error with the packet or an error with the receive socket
      */
-    public void sendERRPacket(byte[] errCode,  InetAddress address, String tempString, int port) {
-        // Check that the Error code is valid before creating
-        if (errCode.length != 2) {
-            throw new IllegalArgumentException("Op code must be length 2! Found length " + errCode.length + ".");
+    private boolean receiveWithTimeout(int timeOutCount, DatagramPacket response) throws IOException {
+        // Block until a datagram is received via sendReceiveSocket.
+        if(response != null && response.getPort() != ERROR_SIM_PORT){
+            sendReceiveSocket.setSoTimeout(1000);
+        } else {
+            sendReceiveSocket.setSoTimeout(0);
         }
 
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-
-        buffer.write(0);
-        buffer.write(5);
-        buffer.write(errCode[0]);
-        buffer.write(errCode[1]);
-        buffer.write(tempString.getBytes(), 0, tempString.length());
-        buffer.write(0);
-
-        DatagramPacket ErrPack = new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, port);
-        System.out.println("Error code " + errCode[1] + " has occurred. Closing the current request...");
         try {
-	        sendReceiveSocket.send(ErrPack);
-	    } catch (IOException e) {
-	        e.printStackTrace();
-	    }
-    }
+            // Receive the packet
+            sendReceiveSocket.receive(receivePacket);
 
-    /**
-     * Parses the file by blocks using the block number given where each block holds 512 
-     * bytes. Reads one block at a time.
-     * 
-     * @param blockNumber Block number to read from where 1 represents the first block in the file (byte 0)
-     * @return returns the byte array (size 512) that holds the block parsed from the file
-     */
-	public byte[] parseFile(int blockNumber) throws IOException, FileNotFoundException, ExistsException{
-        
-        char[] data = new char[512];
-        int newSize;
-        
-        // Only try the read if the location has been saved
-		if (location != null) {
-			//try {
-				File file = new File(location);
-				BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(location), "UTF-8"));
-				
-				if((file.length() - (blockNumber - 1) * 512) < 512 && (file.length() - (blockNumber - 1) * 512) > 0){
-					newSize = (int) file.length() - (blockNumber - 1) * 512;
-					data = new char[newSize];
-				}
-				br.skip((blockNumber - 1) * 512);
-				br.read(data, 0, data.length);
-				br.close();
-                return new String(data).getBytes();
-                
-			//} //catch (FileNotFoundException e) {
-				//e.printStackTrace();
-			//} catch (IOException e) {
-				//e.printStackTrace();
-			//}
-		}
-		
-		return null;
+            // If the packet is an error, throw an exception
+            if (DataHelper.isErrorPacket(receivePacket)) {
+                throw new EPException("Error packet received from Client!", receivePacket);
+            }
+
+            // Update the address and port if not already updated
+            if (receiveAddress == null || receivePort == -1) {
+                receiveAddress = receivePacket.getAddress();
+                receivePort = receivePacket.getPort();
+            }
+
+            // Check that the address and port received are the ones we were expecting
+            if(!receiveAddress.equals(receivePacket.getAddress()) || receivePort != receivePacket.getPort()){
+                throw new AddressException("The address or TID was not correct during transfer: " +
+                                           receivePacket.getAddress() + ", " + receivePacket.getPort());
+            }
+
+            // Check the packet is not duplicated
+            if (currBlock + 1 == DataHelper.getBlockNumber(receivePacket) ||
+                currBlock == 0 && DataHelper.getBlockNumber(receivePacket) == 0) {
+
+                currBlock = DataHelper.getBlockNumber(receivePacket);
+                return true;
+            }
+
+            // If we get here it must be a duplicated packet, ignore it
+            LOG.warning("Received duplicate packet, ignoring...");
+            return false;
+
+        } catch(SocketTimeoutException e) {
+            // Timed out, resend packet and do not continue
+            LOG.warning("Received timed out. Re-sending packet (attempts remaining: " + (5 - timeOutCount) + ")...");
+            sendReceiveSocket.send(response);
+            return false;
+        }
     }
-	
-	/**
-	 * File write method for the client side read that will write to the
-	 * string contents passed to the file in append mode so that no data is overwritten.
-	 * 
-	 * @param data Data to write to file
-	 * @param file File to append data into
-	 */
-	public void writeFile(String data, File file) throws IOException {
-		try {
-			// Open a file writer in append mode
-			FileWriter fw = new FileWriter(file, true);
-			
-			// Write the data and close the writer
-			fw.write(data);
-			fw.close();
-		} catch (IOException e) {
-			throw e;
-		} 
-		
-	}
     
 	/**
 	 * Method that sends the initial request to the server and keeps the server and client 
 	 * communicating until all of the data has been passed for the read/write operation.
-	 * 
+	 *
 	 * @param sendPacket Packet created for the initial request.
 	 */
-    public void sendAndReceive(DatagramPacket sendPacket) throws IllegalOPException, AddressException, IOException, FileNotFoundException, ExistsException, EPException {
-        
+    public void sendAndReceive(DatagramPacket sendPacket) throws IOException {
         //Print out the info on the packet
-    	Helper.printPacketData(sendPacket, "Client: Sending packet", verbose);
+    	DataHelper.printPacketData(sendPacket, "Client: Sending packet", verbose, false);
        
         // Send the datagram packet to the intermediate via the send/receive socket.
-        try {
-            sendReceiveSocket.send(sendPacket);
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
+        sendReceiveSocket.send(sendPacket);
 
         // Construct a DatagramPacket for receiving packets up
         // to 516 bytes long (the length of the byte array).
         DatagramPacket response = sendPacket;
-        while (true) {
-        	timeOutCount = 0;
+
+        boolean running = true;
+        while (running) {
+        	int timeOutCount = 0;
         	byte data[] = new byte[516];
         	receivePacket = new DatagramPacket(data, data.length);
-        	
+
         	boolean cont = false;
         	while(!cont){
-        		cont = true;
-	        	try {
-	        		// Block until a datagram is received via sendReceiveSocket.
-	        		if(response.getPort() != HOST_PORT){
-	        			sendReceiveSocket.setSoTimeout(1000);
-	        		} else {
-	        			sendReceiveSocket.setSoTimeout(0);
-	        		}
-	        		
-	        		sendReceiveSocket.receive(receivePacket);
-	        		
-	        		if (receivePacket.getData()[0] == 0 && receivePacket.getData()[1] == 5) {
-				    	throw new EPException("Error packet received from Client!", receivePacket);
-					}
-	        		
-		    		if(currBlock == 0 && receivePacket.getData()[2] == 0){
-		    			currBlock = -1;
-	        		}
-		    		 if(currBlock+1 == receivePacket.getData()[2]){
-		    			//if the new blocknum == +1 the previous
-		    			currBlock =receivePacket.getData()[2];
-		    		} else{
-		    			cont = false;
-		    		}
-	        		
-	        	}catch(SocketTimeoutException e){
-			    	e.printStackTrace();
-			    	try {
-			    		if(timeOutCount < 5){
-			    			timeOutCount++;
-			    			sendReceiveSocket.send(response);
-			    		}
-			    		else{
-			    			System.out.println("Timed out to many times, exiting...");
-			    			break;
-			    		}
-			        } catch (IOException e1) {
-			            e1.printStackTrace();
-			            System.exit(1);
-			        }
-			    	cont = false;
-			    	
-			    	
-			    } catch(IOException e) {
-	        		e.printStackTrace();
-	        		System.exit(1);
-	        	}
-	        	
-        	}
-        	
-        	
-        	if (receiveAddress == null) {
-        		receiveAddress = receivePacket.getAddress();
-        	}
-        	
-        	if (receivePort == -1) {
-        		receivePort = receivePacket.getPort();
-        	}
-        	
-        	if(!receiveAddress.equals(receivePacket.getAddress()) || receivePort != receivePacket.getPort()){
-        		Helper.printPacketData(receivePacket, "Client Ecountered Error Packet", true);
-        		throw new AddressException("The address or TID was not correct during transfer: " + receivePacket.getAddress() + ", " + receivePacket.getPort());
+        		cont = receiveWithTimeout(timeOutCount, response);
+                timeOutCount++;
         	}
 
         	// Process the received datagram.
-        	Helper.printPacketData(receivePacket, "Client: Packet received", verbose);
+        	DataHelper.printPacketData(receivePacket, "Client: Packet received", verbose, false);
         	
         	// Check the OP Code
         	byte[] opCode = Arrays.copyOfRange(receivePacket.getData(), 0, 2);
-            byte[] byteBlockNumber = Arrays.copyOfRange(receivePacket.getData(), 2, 4);
 
             // If the code is an ACK then we need to send the next block of data
-        	if (Arrays.equals(opCode, ACK_CODE)) {
-
-                // Increment block number to next block
-        		byteBlockNumber[0]++;
-    			if (byteBlockNumber[0] == 0) {
-    				byteBlockNumber[1]++;
-    			}
-    			
-        		int blockNumber = (byteBlockNumber[1] & 0xFF) << 8 | (byteBlockNumber[0] & 0xFF);
+        	if (Arrays.equals(opCode, OpCodes.ACK_CODE)) {
+        		int blockNumber = DataHelper.getBlockNumber(receivePacket);
+                byte byteBlockNumber[] = DataHelper.getNewBlock(blockNumber + 1);
 
         		// Get the data from the file
-        		byte[] b = parseFile(blockNumber);
+        		byte[] b = FileHelper.parseFile(blockNumber, saveLocation, Charset.forName("UTF-8"));
 
                 // If there is no more data left in the file break the loop
-                if (b == null || b[0] == 0) {
+                if (b == null) {
                     break;
+                }
+
+                // If all of the data read was null data end the loop
+                if (b[0] == 0) {
+                    running = false;
                 }
                 
                 ByteArrayOutputStream reply = new ByteArrayOutputStream();
@@ -283,15 +177,15 @@ public class Client {
                 reply.write(b, 0, b.length);
                 
                 // Otherwise send the new packet to the server
-                response = createPacket(DATA_CODE, reply.toByteArray(), receivePacket.getPort());
+                response = createPacket(OpCodes.DATA_CODE, reply.toByteArray(), receivePacket.getPort());
 
-
-        	} else if (Arrays.equals(opCode, DATA_CODE)) {
+        	} else if (Arrays.equals(opCode, OpCodes.DATA_CODE)) {
                 // Get the data
                 byte[] transferred = Arrays.copyOfRange(receivePacket.getData(), 4, receivePacket.getLength());
+                byte[] minimized = DataHelper.minimi(transferred, transferred.length);
 
-                byte[] minimized = Helper.minimi(transferred, transferred.length);
-                writeFile(new String(minimized), new File(saveLocation));
+                // Write the data to the file location
+                FileHelper.writeFile(new String(minimized), new File(saveLocation));
                                 
                 // Check if there is more data to be read or not
                 if (minimized.length < 512) {
@@ -300,32 +194,23 @@ public class Client {
                 }
 
                 // Otherwise send an acknowledge to the server
-                response = createPacket(ACK_CODE, byteBlockNumber, receivePacket.getPort());    
-            } else if (Arrays.equals(opCode, ERR_CODE)) {
-            	// Quit the program and display message
-            	Helper.printPacketData(receivePacket, "Client: Error Packet Receieved", true);
-            	//running = false;
-            	//return;
+                byte byteBlockNumber[] = Arrays.copyOfRange(receivePacket.getData(), 2, 4);
+                response = createPacket(OpCodes.ACK_CODE, byteBlockNumber, receivePacket.getPort());
+
+            } else if (Arrays.equals(opCode, OpCodes.ERR_CODE)) {
+            	// Quit the request and display message
+            	DataHelper.printPacketData(receivePacket, "Client: Error Packet Received", true, false);
             	break;
             } else {
-            	Helper.printPacketData(receivePacket, "Client Ecountered Error Packet", true);
-            	throw new IllegalOPException("Illegal opCode");
+                // There must have been an error in the packet OP code
+            	throw new IllegalOPException("Illegal opCode received: " + Arrays.toString(opCode));
             }
 
-            // TODO this needs to be refactored
-            if (response != null) {
-        	    Helper.printPacketData(response, "Client: Sending Packet", verbose);
-            }
+        	DataHelper.printPacketData(response, "Client: Sending Packet", verbose, false);
 
             // Send the response to the server
-            try {
-                sendReceiveSocket.send(response);
-            } catch (IOException e) {
-                e.printStackTrace();
-                System.exit(1);
-            }
+            sendReceiveSocket.send(response);
         }
-        receiveAddress = null;
    }
 
     /**
@@ -349,13 +234,10 @@ public class Client {
      * @param opCode 2 byte operation code 
      * @param fileName File name on the server to perform IO on
      * @param mode mode for IO
+     * @param saveLocation file save location
      * @return Datagram packet created for request
      */
-    public DatagramPacket createPacket(byte[] opCode, String fileName, String mode) {
-        return createPacket(opCode, fileName, mode, null);
-    }
-
-    public DatagramPacket createPacket(byte[] opCode, String fileName, String mode, String location) {
+    public DatagramPacket createPacket(byte[] opCode, String fileName, String mode, String saveLocation) {
         // Check that the op code is valid before creating
         if (opCode.length != 2) {
             throw new IllegalArgumentException("Op code must be length 2! Found length " + opCode.length + ".");
@@ -367,15 +249,16 @@ public class Client {
         buffer.write(opCode[0]);
         buffer.write(opCode[1]);
 
-        // Write the file name and mode seperated by 0s
+        // Write the file name and mode separated by 0s
         buffer.write(fileName.getBytes(), 0, fileName.length());
         buffer.write(0);
         buffer.write(mode.getBytes(), 0, mode.length());
         buffer.write(0);
 
-        this.location = location;
-        
-        return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, HOST_PORT);
+        // Save the location for writing later
+        this.saveLocation = saveLocation;
+
+        return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, ERROR_SIM_PORT);
     }
 
     /**
@@ -403,108 +286,164 @@ public class Client {
     }
 
     /**
+     * Method to run the read request between the client and server.
+     *
+     * @param args Arguments passed from UI
+     * @throws IOException thrown if there is a problem with the transfer
+     */
+    private void runRead(String args[]) throws IOException {
+        // Check the command has the correct amount of arguments
+        if (args.length != 4) {
+            LOG.warning("Instruction invalid length!");
+            return;
+        }
+
+        // Create the request packet with the read code
+        DatagramPacket packet = createPacket(OpCodes.READ_CODE, args[1], args[3], args[2]);
+        File file = new File(saveLocation);
+
+        try {
+            // Create the subdirectories if they don't already exist
+            FileHelper.createSubDirectories(saveLocation);
+
+            // Create the file
+            FileHelper.createFile(file);
+        } catch (ExistsException e) {
+            // The file already exists, warn the user and exit the command
+            LOG.log(Level.SEVERE, e.getMessage(), e);
+            return;
+        } catch (SecurityException e) {
+            // The folders could not be created
+            LOG.log(Level.SEVERE, e.getMessage(), e);
+            return;
+        }
+
+        sendAndReceive(packet);
+    }
+
+    /**
+     * Method that runs the read request to the server.
+     *
+     * @param args Arguments passed from UI
+     * @throws IOException thrown if there is a an error with the request
+     */
+    private void runWrite(String args[]) throws IOException {
+        // Check the argument is valid length
+        if (args.length != 4) {
+            LOG.warning("Instruction invalid length!");
+            return;
+        }
+
+        // Create the request packet and send it
+        DatagramPacket packet = createPacket(OpCodes.WRITE_CODE, args[1], args[3], args[2]);
+        sendAndReceive(packet);
+    }
+
+    /**
+     * Sets the verbose output mode on the client given the input arguments.
+     *
+     * @param args Arguments passed from UI
+     */
+    private void runVerbose(String args[]) {
+        if (args.length != 2) {
+            LOG.warning("Instruction invalid length!");
+            return;
+        }
+
+        verbose = Boolean.valueOf(args[1]);
+        LOG.info("Verbose mode set to " + verbose);
+    }
+
+    /**
      * Runs the command given the split string around whitespace.
      * 
      * @param args Arguments passed from UI
      */
-    private void runCommand(String args[]) throws IllegalOPException, AddressException, FileNotFoundException, IOException, ExistsException, EPException {
+    private void runCommand(String args[]) throws IOException {
+        // Reset the program counters
     	currBlock = 0;
-    	
+        receiveAddress = null;
+        receivePort = -1;
+
         if (args[0].toLowerCase().equals("help")) {
             printMenu();
             return;
         }
 
         if (args[0].toLowerCase().equals("read")) {
-            if (args.length != 4) {
-                System.out.println("Instruction invalid length!");
-                return;
-            }
-            DatagramPacket packet = createPacket(READ_CODE, args[1], args[3]);
-            saveLocation = args[2];
-    		File file = new File(saveLocation);
-    		
-    		try {
-    			// Check if there are slashes, which indicates directories
-    			Helper.createSubDirectories(saveLocation);
-    			Helper.createFile(file);
-    		} catch (ExistsException e) {
-    			System.err.println(e.getCause() + ": " + e.getMessage());
-    			return;
-    		}
-            
-            sendAndReceive(packet);
+            // Run the read command
+            runRead(args);
             
         } else if (args[0].toLowerCase().equals("write")) {
-            if (args.length != 4) {
-                System.out.println("Instruction invalid length!");
-                return;
-            }
-            DatagramPacket packet = createPacket(WRITE_CODE, args[1], args[3], args[2]);
-            sendAndReceive(packet);
+            // Run the write command
+            runWrite(args);
+
         } else if (args[0].toLowerCase().equals("verbose")) {
-        	if (args.length != 2) {
-        		System.out.println("Instruction invalid length!");
-                return;
-        	}
-        	verbose = true;
-        	System.out.println("Verbose mode set!");
-        }
-        else {
-            System.out.println("Invalid command entered!");
+            runVerbose(args);
+
+        } else {
+            LOG.warning("Invalid command entered!");
         }
     }
 
     /**
-     * Runs the UI and runs the commands entered
-     * @throws IllegalOPException 
+     * Runs the UI and the commands entered until the user enters the "quit" command
+     * which closes the program.
      */
     public void run() {
         Scanner reader = new Scanner(System.in);
-        System.out.println("Starting client...");
+        LOG.info("Starting client...");
         printMenu();
         
-        while(running) {
+        while(true) {
         	System.out.print("\nENTER COMMAND > ");
-        	
-        	receiveAddress = null;
-        	receivePort = -1;
-        	
+
             // Read the input from the user
             String input = reader.nextLine();
 
             // Parse the input and check for keywords
             String args[] = input.split("\\s+");
 
+            // Check the user passed in arguments
             if (args.length > 0) {
+                // Quit the program if quit is entered
                 if (args[0].toLowerCase().equals("quit")) {
                     break;
                 } else {
                     try{
+                        // Run the command
                     	runCommand(args);
                     	
                     } catch(IllegalOPException e){
-                    	sendERRPacket(EC4, address, e.getMessage(), receivePort);
+                        LOG.log(Level.SEVERE, e.getMessage(), e);
+                    	DataHelper.sendErrorPacket(ErrorCodes.ILLEGAL_OP, sendReceiveSocket, address, receivePort, e.getMessage());
                     } catch (AddressException e) {
-                		sendERRPacket(EC5, address, e.getMessage(), receivePort); 
+                        LOG.log(Level.SEVERE, e.getMessage(), e);
+                        DataHelper.sendErrorPacket(ErrorCodes.UNKNOWN_TID, sendReceiveSocket, address, receivePort, e.getMessage());
                 	} catch (FileNotFoundException e) {
-                		sendERRPacket(EC1, address, e.getMessage(), receivePort);
-        			} catch (IOException e) {
-        				sendERRPacket(EC3, address, e.getMessage(), receivePort);
+                        LOG.log(Level.SEVERE, e.getMessage(), e);
+                        DataHelper.sendErrorPacket(ErrorCodes.FILE_NOT_FOUND, sendReceiveSocket, address, receivePort, e.getMessage());
         			} catch (ExistsException e){
-        				sendERRPacket(EC6, address, e.getMessage(), receivePort);
+                        LOG.log(Level.SEVERE, e.getMessage(), e);
+                        DataHelper.sendErrorPacket(ErrorCodes.FILE_EXISTS, sendReceiveSocket, address, receivePort, e.getMessage());
         			} catch (SecurityException e){
-        				sendERRPacket(EC2, address, e.getMessage(), receivePort);
-        			} catch (EPException e) {
-        				Helper.printPacketData(receivePacket, "Client: Error Packet Receieved", true);
-        			}
+                        LOG.log(Level.SEVERE, e.getMessage(), e);
+                        DataHelper.sendErrorPacket(ErrorCodes.ACCESS, sendReceiveSocket, address, receivePort, e.getMessage());
+        			} catch (DiskException e){
+                        LOG.log(Level.SEVERE, e.getMessage(), e);
+                        DataHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, sendReceiveSocket, address, receivePort, e.getMessage());
+                    } catch (EPException e) {
+        				DataHelper.printPacketData(receivePacket, "Client: Error Packet Received", true, false);
+        			} catch (IOException e) {
+                        LOG.log(Level.SEVERE, e.getMessage(), e);
+                    }
                 }
             } else {
-                System.out.println("Instruction invalid length!");
+                LOG.warning("Instruction invalid length!");
             }
         }
         
-        System.out.println("\nClient shutting down...");
+        LOG.info("Client shutting down...");
         
         // We're finished, so close the socket.
         sendReceiveSocket.close();

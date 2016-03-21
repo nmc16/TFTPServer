@@ -1,8 +1,8 @@
 package server;
 
-import shared.Helper;
+import shared.DataHelper;
+import shared.FileHelper;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -97,11 +97,10 @@ public class ServerRequest implements Runnable {
     }
     
     public boolean allowAccess(DatagramPacket packet){
-    	//File file = Helper.getFile(initialPacket)
+    	//File file = DataHelper.getFile(initialPacket)
     	for(String fileName: filesInUse){//CHANGE TO .lentgh format and make sure corresponding thread is still running
     		//if file already being used
-    		//System.out.println("List file: " + fileName + " passed file: " + Helper.getFile(packet).getName());
-    		if(fileName == Helper.getFile(packet).getName()){
+    		if (fileName.equals(FileHelper.getFileFromPacket(packet).getName())) {
     			return false;
     		}
     	}
@@ -125,29 +124,29 @@ public class ServerRequest implements Runnable {
 
                 // Minimize the data
                 int len = receivePacket.getLength();
-                mydata = Helper.minimi(data, len);
+                mydata = DataHelper.minimi(data, len);
                 
                 if(allowAccess(receivePacket)){
                 	
 	                // Verify the data
 	                if(verify(mydata)){
 	                    // Print out the data on the received package
-	                    Helper.printPacketData(receivePacket, "Server", ServerSettings.verbose);
+	                    DataHelper.printPacketData(receivePacket, "Server", ServerSettings.verbose, true);
 	                    Thread clientThread = new Thread(new ServerResponse(receivePacket));
 	                    clientThread.start();
 	                    openRequests.add(clientThread);
-	                    filesInUse.add(Helper.getFile(receivePacket).getName());
+	                    filesInUse.add(FileHelper.getFileFromPacket(receivePacket).getName());
 	                } else{
 	                    //terminate the program
 	                    System.out.println("\nReceived invalid request! Not allowing request to be performed.");
-	                    Helper.printPacketData(receivePacket, "Server Request Thread: Invalid Request", true);
+	                    DataHelper.printPacketData(receivePacket, "Server Request Thread: Invalid Request", true, true);
 	                    ServerResponse response = new ServerResponse(receivePacket);
 	                    byte[] errcode = {0, 4};
 	                    response.sendERRPacket(errcode, receivePacket.getAddress(), "Invalid data request", receivePacket.getPort());
 	                }
                 } else{
             	 	System.out.println("\n access denied! File in use");
-            	 	Helper.printPacketData(receivePacket, "Server Request Thread: Sercurity declined", true);
+            	 	DataHelper.printPacketData(receivePacket, "Server Request Thread: Sercurity declined", true, true);
             	 	ServerResponse response = new ServerResponse(receivePacket);
             	 	byte[] errcode = {0, 2};
                     response.sendERRPacket(errcode, receivePacket.getAddress(), "Sercurity declined", receivePacket.getPort());

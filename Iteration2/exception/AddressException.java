@@ -1,6 +1,6 @@
 package exception;
 
-public class AddressException extends Exception {
+public class AddressException extends TFTPException {
 	public AddressException (String message) {
 		super(message);
 	}

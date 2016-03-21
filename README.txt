@@ -137,4 +137,10 @@ Breakdown:
 	Abbas: Coding, Timing Diagrams
 	Nic: Testing, Coding
 	Kevin: Timing Diagrams, Testing
+
+
+Notes:
+======
+1) Looks like loop breaks on client when data read is 0, there could be a case where the data read is 0 but packet
+    still needs to be sent to server. Currently doenst do this.
     	

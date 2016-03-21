@@ -4,7 +4,8 @@ import exception.AddressException;
 import exception.EPException;
 import exception.ExistsException;
 import exception.IllegalOPException;
-import shared.Helper;
+import shared.DataHelper;
+import shared.FileHelper;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -61,7 +62,7 @@ public class ServerResponse implements Runnable {
 			opType = 2;
 		}
 		
-		currFile = Helper.getFile(initialPacket).getName();
+		currFile = FileHelper.getFileFromPacket(initialPacket).getName();
 		
 	    try {
 	    	Random r = new Random();
@@ -119,7 +120,7 @@ public class ServerResponse implements Runnable {
 	 * 
 	 * @throws IllegalOPException 
 	 */
-	public void readFile() throws FileNotFoundException, SecurityException, AddressException, IllegalOPException, EPException, IOException {
+	public void readFile() throws IOException {
 		byte[] block = {0, 0};
 		boolean flag = false;
 
@@ -139,7 +140,7 @@ public class ServerResponse implements Runnable {
 			byte[] buffer = new byte[512];
 			char[] chars = new char[512];
 			
-			File file = Helper.getFile(initialPacket);
+			File file = FileHelper.getFileFromPacket(initialPacket);
 
 			if (file.exists()) {
 				FilePermission fp = new FilePermission(file.getAbsolutePath(), "read");
@@ -182,7 +183,7 @@ public class ServerResponse implements Runnable {
 		    DatagramPacket responseData = new DatagramPacket(reply.toByteArray(), reply.toByteArray().length,
 		                                                     data.getAddress(), data.getPort());
 		    //print out the data on the sent packet
-		    Helper.printPacketData(responseData, "Server (" + socket.getLocalPort() + "): Sending packet", ServerSettings.verbose);
+		    DataHelper.printPacketData(responseData, "Server (" + socket.getLocalPort() + "): Sending packet", ServerSettings.verbose, true);
 		    
 			//SEND the PACKET
 		    try {
@@ -260,9 +261,9 @@ public class ServerResponse implements Runnable {
 	 * for write requests, send data packet for the client to wrote 2 512 bytes at a time
 	 * @throws IllegalOPException 
 	 */
-	public void writeToFile() throws SecurityException, IllegalOPException, ExistsException, EPException, AddressException, IOException {
-        File file = Helper.getFile(initialPacket);
-        Helper.createFile(file);
+	public void writeToFile() throws IOException {
+        File file = FileHelper.getFileFromPacket(initialPacket);
+        FileHelper.createFile(file);
 
         if (!file.canWrite()) {
             throw new SecurityException("Access Denied: File " + file.getAbsolutePath() + "does not have" +
@@ -282,7 +283,7 @@ public class ServerResponse implements Runnable {
 		    DatagramPacket responseData = new DatagramPacket(reply.toByteArray(), reply.toByteArray().length,
 		                                                     data.getAddress(), data.getPort());
 		    //print out the data on the sent packet
-		    Helper.printPacketData(responseData, "Server (" + socket.getLocalPort() + "): Sending packet", ServerSettings.verbose);
+		    DataHelper.printPacketData(responseData, "Server (" + socket.getLocalPort() + "): Sending packet", ServerSettings.verbose, true);
 		    
 			//SEND the PACKET
 		    try {
@@ -345,7 +346,7 @@ public class ServerResponse implements Runnable {
 			    	}
 			    	else{
 			    		System.out.println("Timed out to many times, Exit Thread...");
-			    		break;
+			    		return;
 			    	}
 			    } catch (IOException e) {
 		    		e.printStackTrace();
@@ -353,9 +354,9 @@ public class ServerResponse implements Runnable {
 	    	}
 	    	
 	    	
-	    	byte datamin[] = Helper.minimi(receivePacket.getData(), receivePacket.getLength());
+	    	byte datamin[] = DataHelper.minimi(receivePacket.getData(), receivePacket.getLength());
 	    	//print out the data on the sent packet
-	    	Helper.printPacketData(receivePacket, "Server (" + socket.getLocalPort() + "): Received Packet", ServerSettings.verbose);
+	    	DataHelper.printPacketData(receivePacket, "Server (" + socket.getLocalPort() + "): Received Packet", ServerSettings.verbose, true);
 		    
 	    	block[0] = datamin[2];
 	    	block[1] = datamin[3];
@@ -384,22 +385,20 @@ public class ServerResponse implements Runnable {
 	    		sendERRPacket(EC1, address, e.getMessage(), port);
 	    	} catch (SecurityException e) {
 	    		sendERRPacket(EC2, address, e.getMessage(), port);
-	    	} catch (IOException e) {
-	    		sendERRPacket(EC3, address, e.getMessage(), port);
 	    	} catch (IllegalOPException e) {
 	    		sendERRPacket(EC4, address, e.getMessage(), port);
 	    	} catch (AddressException e) {
 	    		sendERRPacket(EC5, address, e.getMessage(), port); 
 	    	} catch (EPException e) {
-	    		Helper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() + "): Received Error Packet, Shutting down", true);
-	    	}
+	    		DataHelper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() + "): Received Error Packet, Shutting down", true, true);
+	    	} catch (IOException e) {
+                sendERRPacket(EC3, address, e.getMessage(), port);
+            }
 	    } else {
 	    	try {
 	    		writeToFile();
 	    	} catch (SecurityException e) {
 	    		sendERRPacket(EC2, address, e.getMessage(), port);
-	    	} catch (IOException e) {
-	    		sendERRPacket(EC3, address, e.getMessage(), port);
 	    	} catch (IllegalOPException e) {
 	    		sendERRPacket(EC4, address, e.getMessage(), port);
 	    	} catch (AddressException e) {
@@ -407,7 +406,9 @@ public class ServerResponse implements Runnable {
 	    	} catch (ExistsException e) {
                 sendERRPacket(EC6, address, e.getMessage(), port);
             } catch (EPException e) {
-            	Helper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() + "): Received Error Packet Shutting down", true);
+            	DataHelper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() + "): Received Error Packet Shutting down", true, true);
+            } catch (IOException e) {
+                sendERRPacket(EC3, address, e.getMessage(), port);
             }
 	    }
 	}

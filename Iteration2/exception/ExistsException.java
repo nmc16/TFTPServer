@@ -1,6 +1,6 @@
 package exception;
 
-public class ExistsException extends Exception {
+public class ExistsException extends TFTPException {
 	public ExistsException (String message) {
 		super(message);
 	}

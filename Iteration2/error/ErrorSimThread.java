@@ -7,7 +7,8 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.util.Scanner;
 
-import shared.Helper;
+import shared.DataHelper;
+
 /**
  * The Thread for the Error simulator, takes init input from the Error simulator then send the request to the server 
  * (continued communication with server thread).
@@ -41,15 +42,7 @@ public class ErrorSimThread implements Runnable {
 			System.exit(1);
 		} 
 	}
-	
-	/**
-	 * 
-	 * @param msg
-	 * @param errCode
-	 * @param received
-	 * @param porter
-	 * @return
-	 */
+
 	public DatagramPacket bringError(byte msg[], DatagramPacket received, int port) {
         byte newmsg[] = msg;
         InetAddress address = received.getAddress();
@@ -186,7 +179,7 @@ public class ErrorSimThread implements Runnable {
 	    	  serverPort = receivePacket.getPort();
 	      }
 	      
-	      Helper.printPacketData(receivePacket, "ErrorSim Received Packet", true);
+	      DataHelper.printPacketData(receivePacket, "ErrorSim Received Packet", true, false);
 	      	      
 	      if(receivePacket.getPort() == serverPort){
 	    	  	receivePacket = new DatagramPacket(receivePacket.getData(), receivePacket.getLength(), receivePacket.getAddress(), clientPort);
@@ -197,16 +190,16 @@ public class ErrorSimThread implements Runnable {
 	      packCount++;
 	      if(packCount == packNum){
 	    	  //call function
-	    	  receivePacket = bringError(Helper.minimi(receivePacket.getData(), receivePacket.getLength()), receivePacket, receivePacket.getPort());
+	    	  receivePacket = bringError(DataHelper.minimi(receivePacket.getData(), receivePacket.getLength()), receivePacket, receivePacket.getPort());
 	      }
 	      
 	      if(receivePacket.getData()[1] == 5){
-	    	  Helper.printPacketData(receivePacket, "ErrorSim Sending Error Packet", true);
+	    	  DataHelper.printPacketData(receivePacket, "ErrorSim Sending Error Packet", true, false);
 	    	  sendUsingSocket(receivePacket);
 	    	  return false;
 	      }
 	      
-	      Helper.printPacketData(receivePacket, "ErrorSim Sending Packet", true);
+	      DataHelper.printPacketData(receivePacket, "ErrorSim Sending Packet", true, false);
 	      
 	      //send
 	      if(lost){

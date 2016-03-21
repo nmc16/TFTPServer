@@ -3,3 +3,6 @@
 .project
 *.txt
 Thumbs.db
+.idea
+*.iml
+out/
