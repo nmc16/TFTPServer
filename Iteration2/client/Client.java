@@ -384,7 +384,7 @@ public class Client {
         			} catch (DiskException e){
                         socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, address, receivePort, e);
                     } catch (EPException e) {
-        				DataHelper.printPacketData(receivePacket, "Client: Error Packet Received", true, false);
+        				DataHelper.printPacketData(e.getPacket(), "Client: Error Packet Received", true, false);
         			} catch (IOException e) {
                         LOG.log(Level.SEVERE, e.getMessage(), e);
                     }

@@ -64,10 +64,9 @@ public class CustomHandler extends Handler {
                 error.write(message);
             } else {
                 stdout.write(message);
+                stdout.flush();
             }
 
-            // Flush both writers
-            flush();
         } catch (Exception e) {
             // Catch the exception and report it
             reportError(null, e, ErrorManager.FORMAT_FAILURE);

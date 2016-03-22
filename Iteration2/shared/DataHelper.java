@@ -145,19 +145,19 @@ public class DataHelper {
 
             // Log the info to the console
             if (isErrorPacket(packet)) {
-                LOG.severe(header + ":" +
+                LOG.severe("\n" + header + ":" +
                         "\n\tFrom host: " + packet.getAddress() +
                         "\n\tHost port: " + packet.getPort() +
                         "\n\tLength: " + packet.getLength() +
                         "\n\tContaining: " + received +
-                        "\n\tByte array: " + byteReceived + "\n");
+                        "\n\tByte array: " + byteReceived);
             } else {
-                LOG.info(header + ":" +
+                LOG.info("\n" + header + ":" +
                         "\n\tFrom host: " + packet.getAddress() +
                         "\n\tHost port: " + packet.getPort() +
                         "\n\tLength: " + packet.getLength() +
                         "\n\tContaining: " + received +
-                        "\n\tByte array: " + byteReceived + "\n");
+                        "\n\tByte array: " + byteReceived);
             }
 
             if (tail) {
