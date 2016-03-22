@@ -38,7 +38,6 @@ public class ServerResponse implements Runnable {
 	private int currBlock = -1;
 	private int timeOutCount = 0;
 
-	//TODO re add in timeout set
 	public ServerResponse(DatagramPacket data) {
         // Configure logger and get it
         DataHelper.configLogger();
@@ -194,18 +193,6 @@ public class ServerResponse implements Runnable {
 			FileHelper.writeFile(contents, file);
 		}
 	}
-
-    /**
-     * Creates datagram error packet using information passed.
-     *
-     * @param errCode 2 byte Error Code
-     * @param address to send to the Error Packet to
-     * @param port port to send Packet to
-     * @param cause exception that caused error packet
-     */
-    public void sendERRPacket(byte[] errCode, InetAddress address, int port, Exception cause) {
-        socketHelper.sendErrorPacket(errCode, address, port, cause);
-    }
 
 	@Override
 	public void run() {

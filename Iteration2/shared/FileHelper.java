@@ -148,16 +148,15 @@ public class FileHelper {
      * @throws java.lang.SecurityException thrown if the file could not be created
      */
     public static void createFile(File file) throws ExistsException {
+        Path path = Paths.get(file.getAbsolutePath());
+        if (Files.exists(path)) {
+            throw new ExistsException("File already exists at path: " + file.getAbsolutePath());
+        }
+
         try {
-            if(!file.exists()) {
-                if (!file.createNewFile()) {
-                    throw new SecurityException("Could not write file from path: " + file.getAbsolutePath());
-                }
-            } else{
-                throw new ExistsException("File already exists at path: " + file.getAbsolutePath());
-            }
+            Files.createFile(path);
         } catch (IOException e) {
-            throw new SecurityException("Could not write file from path: " + file.getAbsolutePath(), e);
+            throw new SecurityException("Could not create file from path: " + file.getAbsolutePath());
         }
     }
 
