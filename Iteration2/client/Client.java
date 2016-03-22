@@ -7,22 +7,16 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.Scanner;
 
-import java.net.SocketTimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import exception.*;
-import shared.DataHelper;
-import shared.ErrorCodes;
-import shared.FileHelper;
-import shared.OpCodes;
+import shared.*;
 
 /**
  * Client program that connects through the error detector to connect to the server
@@ -34,6 +28,7 @@ import shared.OpCodes;
 public class Client {
     private static final int ERROR_SIM_PORT = 68;
     private final Logger LOG;
+    private final SocketHelper socketHelper;
     private DatagramPacket receivePacket;
     private DatagramSocket sendReceiveSocket;
     private String saveLocation;
@@ -52,73 +47,15 @@ public class Client {
             Random r = new Random();
             this.address = InetAddress.getLocalHost();
             sendReceiveSocket = new DatagramSocket(r.nextInt(65553));
-        } catch (SocketException se) { 
-            LOG.log(Level.SEVERE, se.getMessage(), se);
-            System.exit(1);
-        } catch (UnknownHostException e) {
+        } catch (IOException e) {
             LOG.log(Level.SEVERE, e.getMessage(), e);
             System.exit(1);
         }
+
+        // Create the socket helper
+        socketHelper = new SocketHelper(sendReceiveSocket);
     }
 
-    /**
-     * Waits to receive a packet with a timeout that if it is received it resends the DatagramPacket passed
-     * to the method. Method does not use a timeout for the intial request packet sent.
-     *
-     * @param timeOutCount counter to show attempts remaining
-     * @param response DatagramPacket to resend if the receives times out
-     * @return true if the packet was received correctly, false if it needs to be re-run
-     * @throws IOException thrown if there is an error with the packet or an error with the receive socket
-     */
-    private boolean receiveWithTimeout(int timeOutCount, DatagramPacket response) throws IOException {
-        // Block until a datagram is received via sendReceiveSocket.
-        if(response != null && response.getPort() != ERROR_SIM_PORT){
-            sendReceiveSocket.setSoTimeout(1000);
-        } else {
-            sendReceiveSocket.setSoTimeout(0);
-        }
-
-        try {
-            // Receive the packet
-            sendReceiveSocket.receive(receivePacket);
-
-            // If the packet is an error, throw an exception
-            if (DataHelper.isErrorPacket(receivePacket)) {
-                throw new EPException("Error packet received from Client!", receivePacket);
-            }
-
-            // Update the address and port if not already updated
-            if (receiveAddress == null || receivePort == -1) {
-                receiveAddress = receivePacket.getAddress();
-                receivePort = receivePacket.getPort();
-            }
-
-            // Check that the address and port received are the ones we were expecting
-            if(!receiveAddress.equals(receivePacket.getAddress()) || receivePort != receivePacket.getPort()){
-                throw new AddressException("The address or TID was not correct during transfer: " +
-                                           receivePacket.getAddress() + ", " + receivePacket.getPort());
-            }
-
-            // Check the packet is not duplicated
-            if (currBlock + 1 == DataHelper.getBlockNumber(receivePacket) ||
-                currBlock == 0 && DataHelper.getBlockNumber(receivePacket) == 0) {
-
-                currBlock = DataHelper.getBlockNumber(receivePacket);
-                return true;
-            }
-
-            // If we get here it must be a duplicated packet, ignore it
-            LOG.warning("Received duplicate packet, ignoring...");
-            return false;
-
-        } catch(SocketTimeoutException e) {
-            // Timed out, resend packet and do not continue
-            LOG.warning("Received timed out. Re-sending packet (attempts remaining: " + (5 - timeOutCount) + ")...");
-            sendReceiveSocket.send(response);
-            return false;
-        }
-    }
-    
 	/**
 	 * Method that sends the initial request to the server and keeps the server and client 
 	 * communicating until all of the data has been passed for the read/write operation.
@@ -137,15 +74,30 @@ public class Client {
         DatagramPacket response = sendPacket;
 
         boolean running = true;
+        boolean flag = false;
         while (running) {
         	int timeOutCount = 0;
         	byte data[] = new byte[516];
         	receivePacket = new DatagramPacket(data, data.length);
 
-        	boolean cont = false;
-        	while(!cont){
-        		cont = receiveWithTimeout(timeOutCount, response);
-                timeOutCount++;
+        	while(true){
+                PacketResult result = socketHelper.receiveWithTimeout(timeOutCount, response, receiveAddress, receivePort, currBlock);
+                if (result.isSuccess()) {
+                    currBlock = DataHelper.getBlockNumber(result.getPacket());
+                    receiveAddress = result.getPacket().getAddress();
+                    receivePort = result.getPacket().getPort();
+                    receivePacket = result.getPacket();
+                    break;
+                }
+
+                if (result.isTimeOut()) {
+                    timeOutCount++;
+                }
+
+                if (timeOutCount >= 5) {
+                    LOG.severe("Timed out too many times, cancelling request...");
+                    return;
+                }
         	}
 
         	// Process the received datagram.
@@ -156,11 +108,16 @@ public class Client {
 
             // If the code is an ACK then we need to send the next block of data
         	if (Arrays.equals(opCode, OpCodes.ACK_CODE)) {
+                // If the last ack has been received
+                if (flag) {
+                    return;
+                }
+
         		int blockNumber = DataHelper.getBlockNumber(receivePacket);
                 byte byteBlockNumber[] = DataHelper.getNewBlock(blockNumber + 1);
 
         		// Get the data from the file
-        		byte[] b = FileHelper.parseFile(blockNumber, saveLocation, Charset.forName("UTF-8"));
+        		byte[] b = FileHelper.parseFile(blockNumber + 1, saveLocation, Charset.forName("UTF-8"));
 
                 // If there is no more data left in the file break the loop
                 if (b == null) {
@@ -168,8 +125,8 @@ public class Client {
                 }
 
                 // If all of the data read was null data end the loop
-                if (b[0] == 0) {
-                    running = false;
+                if (b.length < 512) {
+                    flag = true;
                 }
                 
                 ByteArrayOutputStream reply = new ByteArrayOutputStream();
@@ -190,7 +147,7 @@ public class Client {
                 // Check if there is more data to be read or not
                 if (minimized.length < 512) {
                     // No more data to be read
-                    break;
+                    running = false;
                 }
 
                 // Otherwise send an acknowledge to the server
@@ -415,23 +372,17 @@ public class Client {
                     	runCommand(args);
                     	
                     } catch(IllegalOPException e){
-                        LOG.log(Level.SEVERE, e.getMessage(), e);
-                    	DataHelper.sendErrorPacket(ErrorCodes.ILLEGAL_OP, sendReceiveSocket, address, receivePort, e.getMessage());
+                    	socketHelper.sendErrorPacket(ErrorCodes.ILLEGAL_OP, address, receivePort, e);
                     } catch (AddressException e) {
-                        LOG.log(Level.SEVERE, e.getMessage(), e);
-                        DataHelper.sendErrorPacket(ErrorCodes.UNKNOWN_TID, sendReceiveSocket, address, receivePort, e.getMessage());
+                        socketHelper.sendErrorPacket(ErrorCodes.UNKNOWN_TID, address, receivePort, e);
                 	} catch (FileNotFoundException e) {
-                        LOG.log(Level.SEVERE, e.getMessage(), e);
-                        DataHelper.sendErrorPacket(ErrorCodes.FILE_NOT_FOUND, sendReceiveSocket, address, receivePort, e.getMessage());
+                        socketHelper.sendErrorPacket(ErrorCodes.FILE_NOT_FOUND, address, receivePort, e);
         			} catch (ExistsException e){
-                        LOG.log(Level.SEVERE, e.getMessage(), e);
-                        DataHelper.sendErrorPacket(ErrorCodes.FILE_EXISTS, sendReceiveSocket, address, receivePort, e.getMessage());
+                        socketHelper.sendErrorPacket(ErrorCodes.FILE_EXISTS, address, receivePort, e);
         			} catch (SecurityException e){
-                        LOG.log(Level.SEVERE, e.getMessage(), e);
-                        DataHelper.sendErrorPacket(ErrorCodes.ACCESS, sendReceiveSocket, address, receivePort, e.getMessage());
+                        socketHelper.sendErrorPacket(ErrorCodes.ACCESS, address, receivePort, e);
         			} catch (DiskException e){
-                        LOG.log(Level.SEVERE, e.getMessage(), e);
-                        DataHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, sendReceiveSocket, address, receivePort, e.getMessage());
+                        socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, address, receivePort, e);
                     } catch (EPException e) {
         				DataHelper.printPacketData(receivePacket, "Client: Error Packet Received", true, false);
         			} catch (IOException e) {

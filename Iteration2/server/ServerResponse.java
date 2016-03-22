@@ -4,18 +4,17 @@ import exception.AddressException;
 import exception.EPException;
 import exception.ExistsException;
 import exception.IllegalOPException;
-import shared.DataHelper;
-import shared.FileHelper;
+import shared.*;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.SocketTimeoutException;
-import java.security.AccessControlException;
-import java.security.AccessController;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Random;
 import java.io.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * The thread created by the server, breaks up data for read and write 
@@ -28,157 +27,70 @@ public class ServerResponse implements Runnable {
     private static final byte RRQ = 1;
     private static final byte DATA = 3;
     private static final byte ACK = 4;
-    private static final byte EC1[] = {0, 1};
-    private static final byte EC2[] = {0, 2};
-    private static final byte EC3[] = {0, 3};
-    private static final byte EC4[] = {0, 4};
-    private static final byte EC5[] = {0, 5};
-    private static final byte EC6[] = {0, 6};
-    
+    private final SocketHelper socketHelper;
+    private final Logger LOG;
 	private DatagramPacket initialPacket;
 	private DatagramPacket data;
 	private DatagramSocket socket;
-	
-	
+
 	private InetAddress address;
 	private int port;
-	private int currDataBlock=-1, currACKBlock=-1;
+	private int currBlock = -1;
 	private int timeOutCount = 0;
-	
-	
-	private int opType;
-	private String currFile;
-	
+
 	//TODO re add in timeout set
-	
-	
 	public ServerResponse(DatagramPacket data) {
+        // Configure logger and get it
+        DataHelper.configLogger();
+        LOG = Logger.getLogger("global");
+
+        // Store the intial packet
 		this.initialPacket = data;
 		this.data = data;
 		
-		if (initialPacket.getData()[1] == RRQ) {
-			opType = 1;
-		} else {
-			opType = 2;
-		}
-		
-		currFile = FileHelper.getFileFromPacket(initialPacket).getName();
-		
 	    try {
+            // Randomize port number to use for socket
 	    	Random r = new Random();
-	        this.address = data.getAddress();
-	        this.port = data.getPort();
-	        socket = new DatagramSocket(r.nextInt(65500));
-	        
+            socket = new DatagramSocket(r.nextInt(65500));
 	    } catch (IOException e) {
-	        e.printStackTrace();
+            // If there is an error in creation, exit the thread
+	        LOG.log(Level.SEVERE, e.getMessage(), e);
+            System.exit(1);
 	    }
-	}
-	
-	
-	public int getOpType(){
-		return opType;
-	}
-	
-	public String getCurrFile(){
-		return currFile;
-	}
-    
-    /**
-     * Creates datagram error packet using information passed.
-     * 
-     * @param errCode 2 byte Error Code
-     * @param address to send to the Error Packet to
-     * @param port port to send Packet to
-     */
-    public void sendERRPacket(byte[] errCode,  InetAddress address, String tempString, int port) {
-        // Check that the Error code is valid before creating
-        if (errCode.length != 2) {
-            throw new IllegalArgumentException("Op code must be length 2! Found length " + errCode.length + ".");
-        }
 
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        // Store the address and port
+        this.address = data.getAddress();
+        this.port = data.getPort();
 
-        buffer.write(0);
-        buffer.write(5);
-        buffer.write(errCode[0]);
-        buffer.write(errCode[1]);
-        buffer.write(tempString.getBytes(), 0, tempString.length());
-        buffer.write(0);
+        // Create the helper object
+        socketHelper = new SocketHelper(socket);
+	}
 
-        DatagramPacket ErrPack = new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, port);
-        
-        try {
-	        socket.send(ErrPack);
-	    } catch (IOException e) {
-	        e.printStackTrace();
-	    }
-    }
-	
+
 	/**
 	 * Reads file 512 bytes at a time from the file of the clients requests choice
 	 * 
 	 * @throws IllegalOPException 
 	 */
 	public void readFile() throws IOException {
-		byte[] block = {0, 0};
-		boolean flag = false;
+		currBlock = 0;
+        timeOutCount = 0;
 
-		while(!flag) {
+		while(true) {
+            currBlock++;
 			ByteArrayOutputStream reply = new ByteArrayOutputStream();
 		
-			block[0]++;
-			if (block[0] == 0) {
-				block[1]++;
-			}
-			
-			int blockNumber = (block[1] & 0xFF) << 8 | (block[0] & 0xFF);
+			byte blockNumber[] = DataHelper.getNewBlock(currBlock);
+
 			reply.write(0);
 			reply.write(DATA);
-			reply.write(block, 0, block.length);
-        
-			byte[] buffer = new byte[512];
-			char[] chars = new char[512];
-			
+			reply.write(blockNumber, 0, blockNumber.length);
+
+
 			File file = FileHelper.getFileFromPacket(initialPacket);
+            byte[] buffer = FileHelper.parseFile(currBlock, file.getAbsolutePath(), Charset.forName("UTF-8"));
+            reply.write(buffer, 0, buffer.length);
 
-			if (file.exists()) {
-				FilePermission fp = new FilePermission(file.getAbsolutePath(), "read");
-				try {
-					AccessController.checkPermission(fp);
-				} catch (AccessControlException e) {
-					throw new SecurityException("Access Denied: File " + file.getAbsolutePath() + " does not have" +
-                            " read access");
-				}
-                if (!file.canRead()) {
-                    throw new SecurityException("Access Denied: File " + file.getAbsolutePath() + " does not have" +
-                                                " read access");
-                }
-
-				try {
-					BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file.getAbsolutePath()), "UTF-8"));
-					
-					if((file.length() - (blockNumber - 1) * 512) < 512 && (file.length() - (blockNumber - 1) * 512) > 0){
-						int newSize = (int) file.length() - (blockNumber - 1) * 512;
-						chars = new char[newSize];
-					}
-					br.skip((blockNumber - 1) * 512);
-					int i = br.read(chars, 0, chars.length);
-					reply.write(new String(chars).getBytes(), 0, chars.length);
-					br.close();
-      
-	                if (i < 512) {
-	                	flag = true;
-	                }
-	                
-				} catch (IOException e) {
-					throw new SecurityException("Access Denied: File " + file.getAbsolutePath() + " does not have" +
-                            " read access");
-				}
-			} else {
-				throw new FileNotFoundException("File does not exist on server");
-			}
-			
 			//Construct a new packet
 		    DatagramPacket responseData = new DatagramPacket(reply.toByteArray(), reply.toByteArray().length,
 		                                                     data.getAddress(), data.getPort());
@@ -186,75 +98,34 @@ public class ServerResponse implements Runnable {
 		    DataHelper.printPacketData(responseData, "Server (" + socket.getLocalPort() + "): Sending packet", ServerSettings.verbose, true);
 		    
 			//SEND the PACKET
-		    try {
-		        socket.send(responseData);
-		    } catch (IOException e) {
-		        e.printStackTrace();
-		    }
-		    
-		    if (!flag) {
-		    	buffer = new byte[512];
-		    	DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
-			    
-		    	boolean cont = false;
-		    	timeOutCount = 0;
-		    	while(!cont){
-		    		
-		    		cont = true;
-		    		try {
-		    			socket.setSoTimeout(1000);
-			    		socket.receive(receivePacket);
-			    		data = receivePacket;
-			    		
-			    		if (data.getData()[0] == 0 && data.getData()[1] == 5) {
-				    		throw new EPException("Error packet received from Client!", receivePacket);
-				    	}
-				    	if(data.getData()[0] != 0 || data.getData()[1] != 4){
-					    	throw new IllegalOPException("Not vaild ACK OpCode");
-					    }
-				    	if(data.getPort() != this.port || !data.getAddress().equals(this.address)){
-				    		throw new AddressException("Unknown TID/Address");
-				    	}
-				    	
-			    		if(currDataBlock == -1){
-			    			currDataBlock = data.getData()[2];
-			    		} else if(currDataBlock+1 == data.getData()[2]){
-			    			currDataBlock = data.getData()[2];
-			    			
-			    		} else {
-			    			// if not expected packet ignore and keep waiting
-			    			cont = false;
-			    		}
-			    		
-			    		
-			    	} catch(SocketTimeoutException e){
-				    	e.printStackTrace();
-				    	
-				    	//SEND the PACKET
-					    try {
-					    	if(timeOutCount <= 5){
-					    		timeOutCount++;
-					    		System.out.println("Server timed out, resending (attempts left: " + timeOutCount + ")...");
-					    		socket.send(responseData);
-					    	}
-					    	else{
-					    		System.out.println("Timed out to many times, exiting thread...");
-					    		break;
-					    	}
-					    } catch (IOException e1) {
-					        e1.printStackTrace();
-					    }
-					    //try again
-					    cont = false;
-					    
-					    
-					    
-				    } catch (IOException e) {
-			    		e.printStackTrace();
-			    	}
-			    }
-		    }
-		} 
+		    socket.send(responseData);
+
+            if (buffer.length < 512) {
+                break;
+            }
+
+		    timeOutCount = 0;
+		    while(true){
+                PacketResult result = socketHelper.receiveWithTimeout(timeOutCount, responseData, address, port, currBlock - 1);
+                if (result.isSuccess()) {
+                    currBlock = DataHelper.getBlockNumber(result.getPacket());
+                    address = result.getPacket().getAddress();
+                    port = result.getPacket().getPort();
+                    data = result.getPacket();
+                    break;
+                }
+
+                if (result.isTimeOut()) {
+                    timeOutCount++;
+                }
+
+                if (timeOutCount >= 5) {
+                    LOG.severe("Timed out too many times, cancelling request...");
+                    return;
+                }
+			}
+
+		}
 	}
 	
 	/**
@@ -262,104 +133,57 @@ public class ServerResponse implements Runnable {
 	 * @throws IllegalOPException 
 	 */
 	public void writeToFile() throws IOException {
+        currBlock = 0;
+        timeOutCount = 0;
+
         File file = FileHelper.getFileFromPacket(initialPacket);
         FileHelper.createFile(file);
 
-        if (!file.canWrite()) {
-            throw new SecurityException("Access Denied: File " + file.getAbsolutePath() + "does not have" +
-                                        " write access");
-        }
-		
-		byte[] block = {0, 0};
 		boolean flag = false;
 		
 		while(true) {
 			ByteArrayOutputStream reply = new ByteArrayOutputStream();
 			reply.write(0);
 			reply.write(ACK);
-			reply.write(block, 0, block.length);
+
+            byte blockNumber[] = DataHelper.getNewBlock(currBlock);
+			reply.write(blockNumber, 0, blockNumber.length);
 			
 			//Construct a new packet
 		    DatagramPacket responseData = new DatagramPacket(reply.toByteArray(), reply.toByteArray().length,
 		                                                     data.getAddress(), data.getPort());
 		    //print out the data on the sent packet
 		    DataHelper.printPacketData(responseData, "Server (" + socket.getLocalPort() + "): Sending packet", ServerSettings.verbose, true);
-		    
-			//SEND the PACKET
-		    try {
-		        socket.send(responseData);
-		    } catch (IOException e) {
-		        e.printStackTrace();
-		    }
+
+		    socket.send(responseData);
 		    
 		    if (flag) {
 		    	break;
 		    }
-		    
-		    byte[] buffer = new byte[516];
-	    	DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
-	    	boolean cont = false;
-	    	while(!cont){
-	    		cont = true;	
-	    		try {
-	    			socket.setSoTimeout(4000);// TODO set back to 1000
-		    		socket.receive(receivePacket);
-		    		data = receivePacket;
-		    		
-		    		if (data.getData()[0] == 0 && data.getData()[1] == 5) {
-				    	throw new EPException("Error packet received from Client!", receivePacket);
-					} else if(data.getData()[0] != 0 ||data.getData()[1] != 3){
-				    	throw new IllegalOPException("Not vaild DATA OpCode");
-				    }
-		    		
-			    	if(!data.getAddress().equals(this.address)){
-			    		throw new AddressException("unknown Transfer Id");
-			    	}
-			    	if(data.getPort() != this.port){
-			    		throw new AddressException("unknown Port");
-			    	}
-			    	
-		    		if(currACKBlock == -1){
-		    			currACKBlock = data.getData()[2];
-		    		} else if(currACKBlock+1 == data.getData()[2]){
-		    			currACKBlock = data.getData()[2];
-		    		} else{
-		    			// ignore duplicated packet
-		    			cont = false;
-		    		}
-		    		
-		    		
-		    		
-		    	}catch(SocketTimeoutException e){
-			    	if(timeOutCount <= 5){
-			    		e.printStackTrace();
-				    	//SEND the PACKET
-				    	// TODO get this to send again???????????????
-					    //try {
-					        //socket.send(responseData);
-					    //} catch (IOException e1) {
-					      //  e1.printStackTrace();
-					    //}
-					    //try again
-					    cont = false;
-					    timeOutCount ++;
-			    	}
-			    	else{
-			    		System.out.println("Timed out to many times, Exit Thread...");
-			    		return;
-			    	}
-			    } catch (IOException e) {
-		    		e.printStackTrace();
-		    	}
-	    	}
-	    	
-	    	
-	    	byte datamin[] = DataHelper.minimi(receivePacket.getData(), receivePacket.getLength());
+
+	    	while(true){
+                PacketResult result = socketHelper.receiveWithTimeout(timeOutCount, responseData, address, port, currBlock);
+                if (result.isSuccess()) {
+                    currBlock = DataHelper.getBlockNumber(result.getPacket());
+                    address = result.getPacket().getAddress();
+                    port = result.getPacket().getPort();
+                    data = result.getPacket();
+                    break;
+                }
+
+                if (result.isTimeOut()) {
+                    timeOutCount++;
+                }
+
+                if (timeOutCount >= 5) {
+                    LOG.severe("Timed out too many times, cancelling request...");
+                    return;
+                }
+            }
+
+	    	byte datamin[] = DataHelper.minimi(data.getData(), data.getLength());
 	    	//print out the data on the sent packet
-	    	DataHelper.printPacketData(receivePacket, "Server (" + socket.getLocalPort() + "): Received Packet", ServerSettings.verbose, true);
-		    
-	    	block[0] = datamin[2];
-	    	block[1] = datamin[3];
+	    	DataHelper.printPacketData(data, "Server (" + socket.getLocalPort() + "): Received Packet", ServerSettings.verbose, true);
 	    	
 	    	byte[] b = Arrays.copyOfRange(datamin, 4, datamin.length);
 	    	if (datamin.length < 512) {
@@ -367,13 +191,21 @@ public class ServerResponse implements Runnable {
 	    	}
 	    	
 	    	String contents = new String(b);
-	    	
-			FileWriter fw = new FileWriter(file, true);
-			fw.write(contents);
-				
-			fw.close();
+			FileHelper.writeFile(contents, file);
 		}
 	}
+
+    /**
+     * Creates datagram error packet using information passed.
+     *
+     * @param errCode 2 byte Error Code
+     * @param address to send to the Error Packet to
+     * @param port port to send Packet to
+     * @param cause exception that caused error packet
+     */
+    public void sendERRPacket(byte[] errCode, InetAddress address, int port, Exception cause) {
+        socketHelper.sendErrorPacket(errCode, address, port, cause);
+    }
 
 	@Override
 	public void run() {
@@ -382,33 +214,33 @@ public class ServerResponse implements Runnable {
 	    	try {
 	    		readFile();
 	    	} catch (FileNotFoundException e) {
-	    		sendERRPacket(EC1, address, e.getMessage(), port);
+	    		socketHelper.sendErrorPacket(ErrorCodes.FILE_NOT_FOUND, address, port, e);
 	    	} catch (SecurityException e) {
-	    		sendERRPacket(EC2, address, e.getMessage(), port);
+                socketHelper.sendErrorPacket(ErrorCodes.ACCESS, address, port, e);
 	    	} catch (IllegalOPException e) {
-	    		sendERRPacket(EC4, address, e.getMessage(), port);
+                socketHelper.sendErrorPacket(ErrorCodes.ILLEGAL_OP, address, port, e);
 	    	} catch (AddressException e) {
-	    		sendERRPacket(EC5, address, e.getMessage(), port); 
+                socketHelper.sendErrorPacket(ErrorCodes.UNKNOWN_TID, address, port, e);
 	    	} catch (EPException e) {
 	    		DataHelper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() + "): Received Error Packet, Shutting down", true, true);
 	    	} catch (IOException e) {
-                sendERRPacket(EC3, address, e.getMessage(), port);
+                socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, address, port, e);
             }
 	    } else {
 	    	try {
 	    		writeToFile();
 	    	} catch (SecurityException e) {
-	    		sendERRPacket(EC2, address, e.getMessage(), port);
+                socketHelper.sendErrorPacket(ErrorCodes.ACCESS, address, port, e);
 	    	} catch (IllegalOPException e) {
-	    		sendERRPacket(EC4, address, e.getMessage(), port);
+                socketHelper.sendErrorPacket(ErrorCodes.ILLEGAL_OP, address, port, e);
 	    	} catch (AddressException e) {
-	    		sendERRPacket(EC5, address, e.getMessage(), port); 
+                socketHelper.sendErrorPacket(ErrorCodes.UNKNOWN_TID, address, port, e);
 	    	} catch (ExistsException e) {
-                sendERRPacket(EC6, address, e.getMessage(), port);
+                socketHelper.sendErrorPacket(ErrorCodes.FILE_EXISTS, address, port, e);
             } catch (EPException e) {
             	DataHelper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() + "): Received Error Packet Shutting down", true, true);
             } catch (IOException e) {
-                sendERRPacket(EC3, address, e.getMessage(), port);
+                socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, address, port, e);
             }
 	    }
 	}

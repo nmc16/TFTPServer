@@ -30,13 +30,21 @@ public class FileHelper {
      * @return true if file has permissions, false otherwise
      */
     public static boolean hasPermission(File file, String perm) {
+        Path path = Paths.get(file.getAbsolutePath());
+        boolean a = Files.isReadable(path);
+
+        if (a) {
+            return true;
+        }
+
         try {
             // Check the file permissions
-            FilePermission fp = new FilePermission(file.getAbsolutePath(), perm);
+            FilePermission fp = new FilePermission(file.getPath(), perm);
             AccessController.checkPermission(fp);
             return true;
         } catch (AccessControlException e) {
             // If thrown the file doesn't have access
+            e.printStackTrace();
             return false;
         }
     }
@@ -79,6 +87,8 @@ public class FileHelper {
                 // Set the new size of the data array to the bytes left in the file
                 int newSize = (int) file.length() - (blockNumber - 1) * 512;
                 data = new char[newSize];
+            } else if ((file.length() - offset) <= 0) {
+                data = new char[0];
             }
 
             // Skip to the block we want to read from
@@ -106,13 +116,13 @@ public class FileHelper {
     public static synchronized void writeFile(String data, File file) throws IOException {
         // Check that the file we are trying to write to exists
         if (!Files.exists(Paths.get(file.getAbsolutePath()))) {
-            throw new FileNotFoundException("Could not find the file to read from path: " + file.getAbsolutePath());
+            throw new FileNotFoundException("Could not find the file to write from path: " + file.getAbsolutePath());
         }
 
         // Check the file has write permissions
         if (!hasPermission(file, "write")) {
             throw new SecurityException("Access Denied: File " + file.getAbsolutePath() + " does not have" +
-                                        " read access");
+                                        " write access");
         }
 
         try {

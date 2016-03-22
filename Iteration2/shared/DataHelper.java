@@ -24,6 +24,9 @@ public class DataHelper {
 
 	private DataHelper() {}
 
+    /**
+     * Configures the global logger if it has not already been logged.
+     */
     public static void configLogger() {
         if (!isLoggerSetup) {
 
@@ -86,15 +89,36 @@ public class DataHelper {
         return newmsg;
     }
 
+    /**
+     * Checks if the DatagramPacket represents an error code.
+     *
+     * @param packet DatagramPacket to check Op Code
+     * @return true if packet is an error packet
+     */
     public static boolean isErrorPacket(DatagramPacket packet) {
         return (packet.getData()[0] == 0 && packet.getData()[1] == 5);
     }
 
+    /**
+     * Converts the two bytes from the DatagramPacket representing the block number (2-4)
+     * into an integer value.
+     *
+     * @param packet DatagramPacket to get the block number from
+     * @return Integer representation of byte array block number
+     */
     public static int getBlockNumber(DatagramPacket packet) {
         byte[] blockNumber = Arrays.copyOfRange(packet.getData(), 2, 4);
         return (int) ByteBuffer.wrap(blockNumber).getShort();
     }
 
+    /**
+     * Converts an integer value into a short and then into a 2 byte array.
+     *
+     * Values will be cut if the integer is larger than representable by a short.
+     *
+     * @param blockNumber Block number to convert
+     * @return 2 byte array representing block number
+     */
     public static byte[] getNewBlock(int blockNumber) {
         return ByteBuffer.allocate(2).putShort((short)blockNumber).array();
     }
@@ -139,47 +163,6 @@ public class DataHelper {
             if (tail) {
                 System.out.print("\nENTER COMMAND > ");
             }
-        }
-    }
-
-    /**
-     * Creates datagram error packet using the error code and address. Sends the error packet using the
-     * socket with the error code provided.
-     *
-     * @param errCode 2 byte Error Code
-     * @param socket DatagramSocket to use to send the packet
-     * @param address to send the Error Packet to
-     * @param port port to send Packet to
-     * @param message Message to send with the error packet
-     */
-    public static void sendErrorPacket(byte[] errCode, DatagramSocket socket, InetAddress address, int port, String message) {
-        // Check that the Error code is valid before creating
-        if (errCode.length != 2) {
-            throw new IllegalArgumentException("Op code must be length 2! Found length " + errCode.length + ".");
-        }
-
-        // Create buffer array
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-
-        // Write the Error Packet code
-        buffer.write(0);
-        buffer.write(5);
-
-        // Write the error code and the message afterwards
-        buffer.write(errCode[0]);
-        buffer.write(errCode[1]);
-        buffer.write(message.getBytes(), 0, message.length());
-        buffer.write(0);
-
-        // Log the error code that has occurred
-        LOG.severe("Error code " + errCode[0] + errCode[1] + " has occurred. Closing the current request...");
-
-        // Create the packet and send it using the socket
-        DatagramPacket errPack = new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, port);
-        try {
-            socket.send(errPack);
-        } catch (IOException e) {
-            LOG.log(Level.SEVERE, e.getMessage(), e);
         }
     }
 }
