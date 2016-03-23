@@ -137,4 +137,11 @@ Breakdown:
 	Abbas: Coding, Timing Diagrams
 	Nic: Testing, Coding
 	Kevin: Timing Diagrams, Testing
+
+
+Notes:
+======
+4) If the last packet is lost it wont be resent from the client
+5) Remnants of file transfers that did not complete are left over, probably should consider
+   adding delete file method that will remove the broken files
     	

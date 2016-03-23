@@ -1,8 +1,11 @@
 package server;
 
-import shared.Helper;
+import exception.IllegalOPException;
+import shared.DataHelper;
+import shared.ErrorCodes;
+import shared.FileHelper;
+import shared.SocketHelper;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -10,6 +13,8 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Thread that receives incoming requests from clients and delegates them to individual
@@ -20,9 +25,8 @@ import java.util.Arrays;
  * @author Team6
  */
 public class ServerRequest implements Runnable {
-
-    // Initialize the sockets and packets
-    private DatagramPacket receivePacket;
+    private final SocketHelper socketHelper;
+    private final Logger LOG;
     private DatagramSocket receiveSocket;
     private ArrayList<Thread> openRequests;
     private ArrayList<String> filesInUse;
@@ -35,10 +39,16 @@ public class ServerRequest implements Runnable {
             receiveSocket = new DatagramSocket(69);
             receiveSocket.setSoTimeout(1000);
         } catch (SocketException se) {
-            System.out.println("Could not create request socket: " + se.getMessage());
             se.printStackTrace();
             System.exit(1);
         }
+
+        // Set up the SocketHelper
+        socketHelper = new SocketHelper(receiveSocket);
+
+        // Set up the Logger
+        DataHelper.configLogger();
+        LOG = Logger.getLogger("global");
     }
 
     /**
@@ -95,92 +105,112 @@ public class ServerRequest implements Runnable {
         
         return q == 2;
     }
-    
+
+    /**
+     * Allows access to the file being read.
+     *
+     * @param packet Packet to check file from
+     * @return true if the file is not in use and the request can go through
+     */
     public boolean allowAccess(DatagramPacket packet){
-    	//File file = Helper.getFile(initialPacket)
     	for(String fileName: filesInUse){//CHANGE TO .lentgh format and make sure corresponding thread is still running
-    		//if file already being used
-    		//System.out.println("List file: " + fileName + " passed file: " + Helper.getFile(packet).getName());
-    		if(fileName == Helper.getFile(packet).getName()){
+    		if (fileName.equals(FileHelper.getFileFromPacket(packet).getName())) {
+                // If file is already active
     			return false;
     		}
     	}
-    	
+
+        // The file is not active
     	return true;
-    	
+    }
+
+    /**
+     * Removes inactive threads from the thread list and the files being preformed on from the active
+     * files list.
+     */
+    public void removeInactive() {
+        int index;
+
+        // Create a copy of the original list
+        ArrayList<Thread> copy = new ArrayList<Thread>(openRequests);
+
+        // Loop and find inactive threads and remove them from the original list
+        for (Thread t : copy) {
+            if (!t.isAlive()) {
+                index = copy.indexOf(t);
+                openRequests.remove(index);
+                filesInUse.remove(index);
+            }
+        }
     }
 
     @Override
     public void run() {
-
+        // Run until the server UI tells us to stop
         while(!ServerSettings.stopRequests) {
             // Initialize the required variables
             byte data[] = new byte[100];
             byte mydata[];
 
-            receivePacket = new DatagramPacket(data, data.length);
+            DatagramPacket receivePacket = new DatagramPacket(data, data.length);
 
             try {
                 receiveSocket.receive(receivePacket);
 
                 // Minimize the data
                 int len = receivePacket.getLength();
-                mydata = Helper.minimi(data, len);
+                mydata = DataHelper.minimi(data, len);
                 
                 if(allowAccess(receivePacket)){
                 	
 	                // Verify the data
 	                if(verify(mydata)){
 	                    // Print out the data on the received package
-	                    Helper.printPacketData(receivePacket, "Server", ServerSettings.verbose);
+	                    DataHelper.printPacketData(receivePacket, "Server", ServerSettings.verbose, true);
+
+                        // Start the new thread
 	                    Thread clientThread = new Thread(new ServerResponse(receivePacket));
 	                    clientThread.start();
+
+                        // Add thread and file to active lists
 	                    openRequests.add(clientThread);
-	                    filesInUse.add(Helper.getFile(receivePacket).getName());
+	                    filesInUse.add(FileHelper.getFileFromPacket(receivePacket).getName());
+
 	                } else{
-	                    //terminate the program
-	                    System.out.println("\nReceived invalid request! Not allowing request to be performed.");
-	                    Helper.printPacketData(receivePacket, "Server Request Thread: Invalid Request", true);
-	                    ServerResponse response = new ServerResponse(receivePacket);
-	                    byte[] errcode = {0, 4};
-	                    response.sendERRPacket(errcode, receivePacket.getAddress(), "Invalid data request", receivePacket.getPort());
+	                    // Terminate the request
+	                    LOG.warning("Received invalid request! Not allowing request to be performed.");
+	                    DataHelper.printPacketData(receivePacket, "Server Request Thread: Invalid Request", true, true);
+	                    socketHelper.sendErrorPacket(ErrorCodes.ILLEGAL_OP, receivePacket.getAddress(),
+                                                     receivePacket.getPort(), new IllegalOPException("Invalid data request"));
 	                }
-                } else{
-            	 	System.out.println("\n access denied! File in use");
-            	 	Helper.printPacketData(receivePacket, "Server Request Thread: Sercurity declined", true);
-            	 	ServerResponse response = new ServerResponse(receivePacket);
-            	 	byte[] errcode = {0, 2};
-                    response.sendERRPacket(errcode, receivePacket.getAddress(), "Sercurity declined", receivePacket.getPort());
+                } else {
+                    // If the file is already in use we don't want to start another request on it
+                    LOG.warning("Request denied, file already in use.");
+                    DataHelper.printPacketData(receivePacket, "Server Request Thread: access denied! File in use", true, true);
+                    socketHelper.sendErrorPacket(ErrorCodes.ACCESS, receivePacket.getAddress(), receivePacket.getPort(),
+                                                 new SecurityException("Request denied, file already in use."));
                 }
 
             } catch (SocketTimeoutException e) {
                 // We don't care because our calls are non-blocking for this socket
 
             } catch (IOException e) {
-                System.out.print("IO Exception: " + e.getMessage());
-                e.printStackTrace();
+                LOG.log(Level.SEVERE, e.getMessage(), e);
                 System.exit(1);
             }
-            int index;
-            ArrayList<Thread> copy = new ArrayList<Thread>(openRequests);
-            for (Thread t : copy) {
-                if (!t.isAlive()) {
-                    index = copy.indexOf(t);
-                	openRequests.remove(index);
-                    filesInUse.remove(index);
-                }
-            }
+
+            removeInactive();
         }
 
         // Close it up
-        System.out.println("Server waiting for current requests to finish (" + openRequests.size() + ")...");
+        LOG.info("Server waiting for current requests to finish (" + openRequests.size() + ")...");
         receiveSocket.close();
 
         for (Thread t : openRequests) {
             try {
                 t.join();
             } catch (InterruptedException e) {
-                System.out.println("Error waiting for requests to finish: " + e.getLocalizedMessage());
+                LOG.severe("Error waiting for requests to finish: " + e.getLocalizedMessage());
                 e.printStackTrace();
             }
         }

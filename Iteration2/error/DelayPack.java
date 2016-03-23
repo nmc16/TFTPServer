@@ -1,63 +1,32 @@
 package error;
 
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.util.Arrays;
-import java.util.Random;
-import java.util.Scanner;
+import shared.DataHelper;
 
-import shared.Helper;
+import java.net.DatagramPacket;
+import java.util.logging.Logger;
 
 public class DelayPack implements Runnable {
-	
 	private int delay;
 	private DatagramPacket data;
-	private DatagramSocket sendSocket;
 	private ErrorSimThread es;
-	
-	
-	public DelayPack(int delay, DatagramPacket data, ErrorSimThread es){
+    private final Logger LOG;
+
+	public DelayPack(int delay, DatagramPacket data, ErrorSimThread es) {
+        DataHelper.configLogger();
+        LOG = Logger.getLogger("global");
 		this.delay = delay;
 		this.data = data;
 		this.es = es;
-		
-		
-		 try {
-		    	Random r = new Random();
-		        sendSocket = new DatagramSocket(r.nextInt(65500));
-		    } catch (IOException e) {
-		        e.printStackTrace();
-		    }
 	}
-	/*
-	public void sendUsingSocket(DatagramPacket packet) {
-		try {
-			
-	            sendSocket.send(packet);
-			}
-	      catch(IOException e) {
-	         e.printStackTrace();
-	         System.exit(1);
-	      }
-	}
-	*/
-	
 	
 	@Override
 	public void run() {
 		try{
 			Thread.sleep(delay);
-		}
-		catch(InterruptedException e){
-			
+		} catch(InterruptedException e){
+			LOG.severe("Interrupted while trying to delay packet sending.");
 		}
 		
 		es.sendUsingSocket(data);
-		
 	}
-	
 }

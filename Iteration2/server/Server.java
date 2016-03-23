@@ -1,31 +1,43 @@
 package server;
 
+import shared.DataHelper;
+
 import java.util.Scanner;
+import java.util.logging.Logger;
 
 
 /**
- * Main server.Server program, takes in requests from intermediate host threads and makes a corresponding server thread
+ * Server class that runs the UI and starts the ServerRequest thread that will delegate all the
+ * incoming requests.
  *
+ * Handles the stopping of the server and the output settings.
+ *
+ * @version 2
+ * @author Team6
  */
 public class Server {
-	
-	
+    private final Logger LOG;
+
     public Server() {
+        DataHelper.configLogger();
+        LOG = Logger.getLogger("global");
         ServerSettings.stopRequests = false;
         ServerSettings.verbose = false;
-        
     }
 
     /**
-     * Prints the UI menu options to stdout
+     * Prints the UI menu options to the screen for the user.
      */
     public void printMenu() {
         System.out.println(" Options:");
         System.out.println("    verbose [true|false] - Changes server display mode to verbose or silent mode.");
         System.out.println("    help - Prints options screen.");
-        System.out.println("    quit - Quits the server.Server program after all requests handled.");
+        System.out.println("    quit - Quits the Server program after all requests handled.");
     }
 
+    /**
+     * Runs the Server UI to control the user input and control when to shut down the Server requests.
+     */
     public void run() {
         Scanner reader = new Scanner(System.in);
         printMenu();
@@ -48,33 +60,29 @@ public class Server {
                 } else if (args[0].toLowerCase().equals("verbose")) {
                     if (args.length == 2) {
                         ServerSettings.verbose = Boolean.valueOf(args[1]);
-                        if(args[1].toLowerCase().equals("true")){
-                        	System.out.println("Verbose mode set!");
-                        } else if(args[1].toLowerCase().equals("false")){
-                        	System.out.println("Verbose mode set to false!");
-                        }
+                        LOG.info("Verbose mode set to " + ServerSettings.verbose + "!");
                     } else {
-                        System.out.println("Verbose command must be followed by true or false!");
+                        LOG.warning("Instruction invalid length!");
                     }
                 }
             } else {
-                System.out.println("Instruction invalid length!");
+                LOG.warning("Instruction invalid length!");
             }
         }
 
         // Set the flag to stop the server requests and shut down
-        System.out.println("server.Server stopping all requests...");
+        LOG.info("Server stopping all requests...");
         ServerSettings.stopRequests = true;
 
         // Wait for request handler to finish currently running requests
         try {
             serverRequests.join();
         } catch (InterruptedException e) {
-            System.out.println("Could not stop requests properly: " + e.getMessage());
+            LOG.severe("Could not stop requests properly: " + e.getMessage());
             e.printStackTrace();
         }
 
-        System.out.println("server.Server shutting down...");
+        LOG.info("Server shutting down...");
         reader.close();
         System.exit(0);
     }
