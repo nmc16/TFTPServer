@@ -61,6 +61,7 @@ public class Client {
 	 * communicating until all of the data has been passed for the read/write operation.
 	 *
 	 * @param sendPacket Packet created for the initial request.
+     * @throws java.io.IOException thrown if there is an error with the request sending or receiving
 	 */
     public void sendAndReceive(DatagramPacket sendPacket) throws IOException {
         //Print out the info on the packet
@@ -315,6 +316,7 @@ public class Client {
      * Runs the command given the split string around whitespace.
      * 
      * @param args Arguments passed from UI
+     * @throws java.io.IOException thrown if there is an error with the command
      */
     private void runCommand(String args[]) throws IOException {
         // Reset the program counters

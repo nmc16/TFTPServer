@@ -74,7 +74,7 @@ public class ErrorSimThread implements Runnable {
 
         // Write the old message without the mode
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        bytes.write(msg, 0, index);
+        bytes.write(msg, 0, index + 1);
 
         // Add the new mode from the user input
         bytes.write(newMode.getBytes(), 0, newMode.getBytes().length);
@@ -94,7 +94,7 @@ public class ErrorSimThread implements Runnable {
      */
 	public DatagramPacket bringError(byte msg[], DatagramPacket received, int port) {
         // Create a copy of the message to alter
-        byte newMsg[] = Arrays.copyOf(msg, msg.length);
+        byte newMsg[] = Arrays.copyOf(msg, received.getLength());
 
         if(mode.equals("00")){
         	// Normal operation, don't alter anything
@@ -116,7 +116,8 @@ public class ErrorSimThread implements Runnable {
 
         } else if(mode.equals("04")){
         	// Edit the last bit of the mode to make it invalid
-            newMsg = editMode(msg, argument);
+            newMsg = editMode(newMsg, argument);
+            return new DatagramPacket(newMsg,newMsg.length, received.getAddress(), port);
 
         } else if(mode.equals("05")){ //&& Integer.valueOf(args[1])>0){
 	        // Delay the packet
@@ -152,7 +153,7 @@ public class ErrorSimThread implements Runnable {
 	public void printErrorList() {
 		System.out.print("\nThis is the error SIM. To choose your error, please print exactly what's between the quotations and the packet number afterwards: \n");
 		System.out.print("\"00\": Normal Operations\n");
-		System.out.print("\"01\": Change the OpCode\n");
+		System.out.print("\"01 [2 byte opcode] [packet number]\": Change the OpCode\n");
 	    System.out.print("\"02\": Change to an invalid port number\n");
 	    System.out.print("\"03\": Change to a different Address\n");
 	    System.out.print("\"04\": Change the mode\n");
@@ -205,8 +206,9 @@ public class ErrorSimThread implements Runnable {
 	public boolean setMode(String input) {
 		String args[] = input.split("\\s+");
 
-        // All commands must have length two except the normal operation mode
-        if(args.length != 2 && !(args.length == 1 && Integer.valueOf(args[0]) == 0)){
+        // All commands must have length two except the normal operation mode and the edited OP code
+        if(args.length != 2 && !(args.length == 1 && Integer.valueOf(args[0]) == 0) &&
+                               !(args.length == 3 && Integer.valueOf(args[0]) == 1)){
  	  		return false;
  	  	}
 
@@ -215,25 +217,34 @@ public class ErrorSimThread implements Runnable {
  	  		return false;
  	  	}
 
+        // Reset the pack count
+        packCount = 1;
+
         // Set the mode and second argument
  	  	mode = args[0];
+
+        // If normal operation no need to store the arguments
+        if (args.length == 1) {
+            return true;
+        }
+
         argument = args[1];
 
         // Check that the argument is valid
-        if (Integer.valueOf(args[0]) == 1 && argument.length() != 2) {
+        if (Integer.valueOf(args[0]) == 1 && (argument.length() != 2 || args.length != 3)) {
             return false;
         }
 
         // Set the mode to the first packet if the request is to be edited
-        if (Integer.valueOf(args[0]) == 1 || Integer.valueOf(args[0]) == 4) {
+        if (Integer.valueOf(args[0]) == 4) {
             packNum = 2;
+        } else if (Integer.valueOf(args[0]) == 1) {
+            // We need to store the last argument instead for edited OP Code
+            packNum = Integer.valueOf(args[2]);
         } else {
             // Otherwise set the packet to the one specified by the user
             packNum = Integer.valueOf(args[1]);
         }
-
-        // Reset the pack count
- 	  	packCount = 1;
 
  	  	return true;
 	}
@@ -259,11 +270,11 @@ public class ErrorSimThread implements Runnable {
 	    }
 
         // Update the port if it hasn't been already
-	    if(serverPort == -1){
+	    if (serverPort == -1) {
             serverPort = receivePacket.getPort();
 	    }
 
-	    DataHelper.printPacketData(receivePacket, "ErrorSim Received Packet", true, false);
+	    DataHelper.printPacketData(receivePacket, "ErrorSim Received Packet (" + packCount + ")", true, false);
 
         // If the data packet was received from the server send it to the client and vice versa
 	    if(receivePacket.getPort() == serverPort){
@@ -279,7 +290,7 @@ public class ErrorSimThread implements Runnable {
 	    	  receivePacket = bringError(DataHelper.minimi(receivePacket.getData(), receivePacket.getLength()), receivePacket, receivePacket.getPort());
 	    }
 
-        DataHelper.printPacketData(receivePacket, "ErrorSim Sending Packet", true, false);
+        DataHelper.printPacketData(receivePacket, "ErrorSim Sending Packet (" + packCount + ")", true, false);
 
         // If the packet received is an error packet end the transfer
         if(DataHelper.isErrorPacket(receivePacket)){

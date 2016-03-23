@@ -67,9 +67,10 @@ public class ServerResponse implements Runnable {
 
 
 	/**
-	 * Reads file 512 bytes at a time from the file of the clients requests choice
+	 * Reads the file from the server and sends the data to the client. Expects ACK op codes back
+     * from the client in order to send next block.
 	 * 
-	 * @throws IllegalOPException 
+	 * @throws java.io.IOException thrown if there is an error with responding to the read request
 	 */
 	public void readFile() throws IOException {
 		currBlock = 0;
@@ -124,12 +125,20 @@ public class ServerResponse implements Runnable {
                 }
 			}
 
-		}
+            // Check the OP Code
+            byte[] opCode = Arrays.copyOfRange(data.getData(), 0, 2);
+            if (!Arrays.equals(opCode, OpCodes.ACK_CODE)) {
+                // There must have been an error in the packet OP code
+                throw new IllegalOPException("Illegal opCode received: " + Arrays.toString(opCode));
+            }
+        }
 	}
 	
 	/**
-	 * for write requests, send data packet for the client to wrote 2 512 bytes at a time
-	 * @throws IllegalOPException 
+	 * Receives data packets from the client and sends acknowledgements back. Expects DATA packets from the client
+     * and writes them to the file specified in the request.
+     *
+	 * @throws java.io.IOException thrown if there is an error with the write request
 	 */
 	public void writeToFile() throws IOException {
         currBlock = 0;
@@ -180,6 +189,13 @@ public class ServerResponse implements Runnable {
                 }
             }
 
+            // Check the OP Code
+            byte[] opCode = Arrays.copyOfRange(data.getData(), 0, 2);
+            if (!Arrays.equals(opCode, OpCodes.DATA_CODE)) {
+                // There must have been an error in the packet OP code
+                throw new IllegalOPException("Illegal opCode received: " + Arrays.toString(opCode));
+            }
+
 	    	byte datamin[] = DataHelper.minimi(data.getData(), data.getLength());
 	    	//print out the data on the sent packet
 	    	DataHelper.printPacketData(data, "Server (" + socket.getLocalPort() + "): Received Packet", ServerSettings.verbose, true);
@@ -200,6 +216,7 @@ public class ServerResponse implements Runnable {
 	    if (initialPacket.getData()[1] == RRQ) {
 	    	try {
 	    		readFile();
+                return;
 	    	} catch (FileNotFoundException e) {
 	    		socketHelper.sendErrorPacket(ErrorCodes.FILE_NOT_FOUND, address, port, e);
 	    	} catch (SecurityException e) {
@@ -216,6 +233,7 @@ public class ServerResponse implements Runnable {
 	    } else {
 	    	try {
 	    		writeToFile();
+                return;
 	    	} catch (SecurityException e) {
                 socketHelper.sendErrorPacket(ErrorCodes.ACCESS, address, port, e);
 	    	} catch (IllegalOPException e) {
@@ -230,5 +248,6 @@ public class ServerResponse implements Runnable {
                 socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, address, port, e);
             }
 	    }
+        System.out.print("\nENTER COMMAND > ");
 	}
 }

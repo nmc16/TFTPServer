@@ -141,9 +141,7 @@ Breakdown:
 
 Notes:
 ======
-1) Looks like loop breaks on client when data read is 0, there could be a case where the data read is 0 but packet
-    still needs to be sent to server. Currently doesn't do this.
-2) ServerRequests needs to be changed to not use the response method for error packets
-3) Need to pull the receive with timeout to another helper class that has individual instances
 4) If the last packet is lost it wont be resent from the client
+5) Remnants of file transfers that did not complete are left over, probably should consider
+   adding delete file method that will remove the broken files
     	

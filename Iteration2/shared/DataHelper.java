@@ -2,11 +2,7 @@ package shared;
 
 import server.ServerSettings;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.logging.*;
@@ -145,19 +141,19 @@ public class DataHelper {
 
             // Log the info to the console
             if (isErrorPacket(packet)) {
-                LOG.severe("\n" + header + ":" +
+                LOG.severe(header + ":" +
                         "\n\tFrom host: " + packet.getAddress() +
                         "\n\tHost port: " + packet.getPort() +
                         "\n\tLength: " + packet.getLength() +
                         "\n\tContaining: " + received +
-                        "\n\tByte array: " + byteReceived);
+                        "\n\tByte array: " + byteReceived + "\n");
             } else {
                 LOG.info("\n" + header + ":" +
                         "\n\tFrom host: " + packet.getAddress() +
                         "\n\tHost port: " + packet.getPort() +
                         "\n\tLength: " + packet.getLength() +
                         "\n\tContaining: " + received +
-                        "\n\tByte array: " + byteReceived);
+                        "\n\tByte array: " + byteReceived + "\n");
             }
 
             if (tail) {
