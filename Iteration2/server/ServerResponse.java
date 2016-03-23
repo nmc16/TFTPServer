@@ -226,7 +226,7 @@ public class ServerResponse implements Runnable {
 	    	} catch (AddressException e) {
                 socketHelper.sendErrorPacket(ErrorCodes.UNKNOWN_TID, address, port, e);
 	    	} catch (EPException e) {
-	    		DataHelper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() + "): Received Error Packet, Shutting down", true, true);
+	    		DataHelper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() + "): Received Error Packet, Shutting down", true, false);
 	    	} catch (IOException e) {
                 socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, address, port, e);
             }
@@ -243,7 +243,7 @@ public class ServerResponse implements Runnable {
 	    	} catch (ExistsException e) {
                 socketHelper.sendErrorPacket(ErrorCodes.FILE_EXISTS, address, port, e);
             } catch (EPException e) {
-            	DataHelper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() + "): Received Error Packet Shutting down", true, true);
+            	DataHelper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() + "): Received Error Packet Shutting down", true, false);
             } catch (IOException e) {
                 socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, address, port, e);
             }
