@@ -27,6 +27,8 @@ import shared.*;
  */
 public class Client {
     private static final int ERROR_SIM_PORT = 68;
+    private static final int SERVER_PORT = 69;
+    private int packetMode = 0;
     private final Logger LOG;
     private final SocketHelper socketHelper;
     private DatagramPacket receivePacket;
@@ -181,6 +183,7 @@ public class Client {
         System.out.println("                                             project is being run under directory \"client_files\".");
         System.out.println("    write [filename] [file location] [mode] - Writes file at location to filename on server.");
         System.out.println("    verbose [true|false] - Changes server display mode to verbose or silent mode.");
+        System.out.println("    mode [test|normal] - Test mode sends packets to Error Sim, normal mode sends the packets to Server.");
         System.out.println("    help - Prints options screen.");
         System.out.println("    quit - Quits the client program.");
     }
@@ -216,7 +219,12 @@ public class Client {
         // Save the location for writing later
         this.saveLocation = saveLocation;
 
-        return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, ERROR_SIM_PORT);
+        // Change the port for the request based on the user selected mode
+        if (packetMode == 1) {
+            return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, ERROR_SIM_PORT);
+        } else {
+            return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, SERVER_PORT);
+        }
     }
 
     /**
@@ -313,6 +321,29 @@ public class Client {
     }
 
     /**
+     * Sets the mode given the user input. If the mode is set to 1, it is in test mode and the packets will
+     * be sent to the error sim. If the mode is 0 then the packets will be sent directly to the server.
+     *
+     * @param args Arguments passed from UI
+     */
+    private void runMode(String args[]) {
+        if (args.length != 2) {
+            LOG.warning("Instruction invalid length!");
+            return;
+        }
+
+        if (args[1].toLowerCase().equals("test")) {
+            packetMode = 1;
+            LOG.info("Mode set to test!");
+        } else if (args[1].toLowerCase().equals("normal")) {
+            packetMode = 0;
+            LOG.info("Mode set to normal!");
+        } else {
+            LOG.warning("Not valid mode!");
+        }
+    }
+
+    /**
      * Runs the command given the split string around whitespace.
      * 
      * @param args Arguments passed from UI
@@ -339,6 +370,9 @@ public class Client {
 
         } else if (args[0].toLowerCase().equals("verbose")) {
             runVerbose(args);
+
+        } else if (args[0].toLowerCase().equals("mode")) {
+            runMode(args);
 
         } else {
             LOG.warning("Invalid command entered!");
