@@ -58,8 +58,14 @@ public class DataHelper {
         int n = 0;
         int end = msg.length;
 
-        while(n != end){
-            cud = cud + msg[n] + " ";
+        // Loop through the bytes and add them to the string representation
+        while(n != end) {
+            // If the value is signed negative, convert it to unsigned int representation
+            if (msg[n] < 0) {
+                cud = cud + (msg[n] & 0xFF) + " ";
+            } else {
+                cud = cud + msg[n] + " ";
+            }
             n = n + 1;
         }
         return cud;
