@@ -9,6 +9,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketTimeoutException;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -84,15 +85,21 @@ public class SocketHelper {
                                            packet.getAddress() + ", " + packet.getPort());
             }
 
-            // Check the packet is not duplicated
+            // Check the packet is not duplicated ACK
+            byte[] opCode = Arrays.copyOfRange(packet.getData(), 0, 2);
             if (block + 1 == DataHelper.getBlockNumber(packet) || block == 0 && DataHelper.getBlockNumber(packet) == 0) {
-                result.setSuccess(true);
+            	result.setSuccess(true);
+                result.setPacket(packet);
+                return result;
+            } else if(Arrays.equals(opCode, OpCodes.DATA_CODE)){
+            	LOG.warning("Received duplicate DATA packet");
+            	result.setSuccess(true);
                 result.setPacket(packet);
                 return result;
             }
 
-            // If we get here it must be a duplicated packet, ignore it
-            LOG.warning("Received duplicate packet, ignoring...");
+            // If we get here it must be a duplicated ACK packet, ignore it
+            LOG.warning("Received duplicate ACK packet, ignoring...");
             return result;
 
         } catch(SocketTimeoutException e) {
