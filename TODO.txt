@@ -1,0 +1,25 @@
+TODO:
+
+- half transfered file (file should be deleted if the transfer is incomplete)
+
+- edit packet in errorsim
+	- change block number (errorsim)
+	- make file size > 516
+
+- ALL DIAGRAMS
+
+- error 5, invaild TID send error packet to the inv TID and then treat as a lost packet
+
+- loss packet fix timeouts// offset one of the timeouts
+
+- fix neagative values for data output/ block num
+
+- error messages change look of output
+
+- Errorsim input ease of user for ack and data (change 5 ack #, or request packet)
+
+
+
+- edit error pack(errorsim)//TODO ask TA/dont really worry about it and stuff I'm making this comment as long as possible for lunchbox
+   
+
