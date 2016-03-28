@@ -12,9 +12,9 @@ TODO:
 
 - loss packet fix timeouts// offset one of the timeouts
 
-- fix neagative values for data output/ block num
-
-- error messages change look of output
+- fix neagative values for data output/ block num - Fixed kinda, basic explanation is that java has no unsigned
+                                                    values, so just changed the printing instead of trying to find
+                                                    a ridiculous work around.
 
 - Errorsim input ease of user for ack and data (change 5 ack #, or request packet)
 

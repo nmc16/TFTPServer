@@ -3,6 +3,7 @@ package server;
 import shared.DataHelper;
 
 import java.util.Scanner;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 
@@ -79,7 +80,7 @@ public class Server {
             serverRequests.join();
         } catch (InterruptedException e) {
             LOG.severe("Could not stop requests properly: " + e.getMessage());
-            e.printStackTrace();
+            LOG.log(Level.SEVERE, e.getMessage(), e);
         }
 
         LOG.info("Server shutting down...");

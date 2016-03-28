@@ -43,7 +43,7 @@ public class ServerResponse implements Runnable {
         DataHelper.configLogger();
         LOG = Logger.getLogger("global");
 
-        // Store the intial packet
+        // Store the initial packet
 		this.initialPacket = data;
 		this.data = data;
 		
@@ -226,7 +226,8 @@ public class ServerResponse implements Runnable {
 	    	} catch (AddressException e) {
                 socketHelper.sendErrorPacket(ErrorCodes.UNKNOWN_TID, address, port, e);
 	    	} catch (EPException e) {
-	    		DataHelper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() + "): Received Error Packet, Shutting down", true, false);
+	    		DataHelper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() +
+                                           "): Received Error Packet, Shutting down", ServerSettings.verbose, false);
 	    	} catch (IOException e) {
                 socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, address, port, e);
             }
@@ -243,7 +244,8 @@ public class ServerResponse implements Runnable {
 	    	} catch (ExistsException e) {
                 socketHelper.sendErrorPacket(ErrorCodes.FILE_EXISTS, address, port, e);
             } catch (EPException e) {
-            	DataHelper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() + "): Received Error Packet Shutting down", true, false);
+            	DataHelper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() +
+                                           "): Received Error Packet Shutting down", ServerSettings.verbose, false);
             } catch (IOException e) {
                 socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, address, port, e);
             }

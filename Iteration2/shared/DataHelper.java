@@ -128,7 +128,7 @@ public class DataHelper {
     /**
      * Prints the packet received or sent data contents to the screen and 
      * the console input line after. Only prints if {@link ServerSettings}
-     * verbose flag is set.
+     * verbose flag is set or if the packet is an error packet.
      * 
      * @param packet DatagramPacket to print data of
      * @param header Header to print at top to show how is displaying data 
@@ -161,9 +161,18 @@ public class DataHelper {
                         "\n\tContaining: " + received +
                         "\n\tByte array: " + byteReceived + "\n");
             }
-
             if (tail) {
                 System.out.print("\nENTER COMMAND > ");
+            }
+
+        } else {
+            // If verbose is off, don't print full details just print the error message and header
+            if (isErrorPacket(packet)) {
+                LOG.severe(header + ": " + new String(packet.getData(), 4, packet.getLength()));
+
+                if (tail) {
+                    System.out.print("\nENTER COMMAND > ");
+                }
             }
         }
     }

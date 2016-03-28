@@ -159,7 +159,7 @@ public class Client {
 
             } else if (Arrays.equals(opCode, OpCodes.ERR_CODE)) {
             	// Quit the request and display message
-            	DataHelper.printPacketData(receivePacket, "Client: Error Packet Received", true, false);
+            	DataHelper.printPacketData(receivePacket, "Client: Error Packet Received", verbose, false);
             	break;
             } else {
                 // There must have been an error in the packet OP code
@@ -276,11 +276,11 @@ public class Client {
             FileHelper.createFile(file);
         } catch (ExistsException e) {
             // The file already exists, warn the user and exit the command
-            LOG.log(Level.SEVERE, e.getMessage(), e);
+            LOG.severe("File already exists: " + e.getMessage());
             return;
         } catch (SecurityException e) {
             // The folders could not be created
-            LOG.log(Level.SEVERE, e.getMessage(), e);
+            LOG.severe("Folders/File could not be created: " + e.getMessage());
             return;
         }
 
@@ -387,7 +387,7 @@ public class Client {
         Scanner reader = new Scanner(System.in);
         LOG.info("Starting client...");
         printMenu();
-        
+
         while(true) {
         	System.out.print("\nENTER COMMAND > ");
 
@@ -420,7 +420,7 @@ public class Client {
         			} catch (DiskException e){
                         socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, address, receivePort, e);
                     } catch (EPException e) {
-        				DataHelper.printPacketData(e.getPacket(), "Client: Error Packet Received", true, false);
+        				DataHelper.printPacketData(e.getPacket(), "Client: Error Packet Received", verbose, false);
         			} catch (IOException e) {
                         LOG.log(Level.SEVERE, e.getMessage(), e);
                     }

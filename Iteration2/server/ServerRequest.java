@@ -179,14 +179,16 @@ public class ServerRequest implements Runnable {
 	                } else{
 	                    // Terminate the request
 	                    LOG.warning("Received invalid request! Not allowing request to be performed.");
-	                    DataHelper.printPacketData(receivePacket, "Server Request Thread: Invalid Request", true, true);
+	                    DataHelper.printPacketData(receivePacket, "Server Request Thread: Invalid Request",
+                                                   ServerSettings.verbose, true);
 	                    socketHelper.sendErrorPacket(ErrorCodes.ILLEGAL_OP, receivePacket.getAddress(),
                                                      receivePacket.getPort(), new IllegalOPException("Invalid data request"));
 	                }
                 } else {
                     // If the file is already in use we don't want to start another request on it
                     LOG.warning("Request denied, file already in use.");
-                    DataHelper.printPacketData(receivePacket, "Server Request Thread: access denied! File in use", true, true);
+                    DataHelper.printPacketData(receivePacket, "Server Request Thread: access denied! File in use",
+                                               ServerSettings.verbose, true);
                     socketHelper.sendErrorPacket(ErrorCodes.ACCESS, receivePacket.getAddress(), receivePacket.getPort(),
                                                  new SecurityException("Request denied, file already in use."));
                 }

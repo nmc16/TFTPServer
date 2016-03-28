@@ -141,8 +141,9 @@ public class SocketHelper {
         buffer.write(0);
 
         // Log the error code that has occurred
-        LOG.severe("Error code " + errCode[0] + errCode[1] + " has occurred. Closing the current request...");
-        LOG.log(Level.SEVERE, cause.getMessage(), cause);
+        System.out.println();
+        LOG.severe("Error code " + errCode[0] + errCode[1] + " has occurred. Closing the current request..." +
+                   "\n\tCause of error: " + cause.getMessage());
 
         // Create the packet and send it using the socket
         DatagramPacket errPack = new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, port);
