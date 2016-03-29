@@ -16,10 +16,7 @@ TODO:
                                                     values, so just changed the printing instead of trying to find
                                                     a ridiculous work around.
 
-- Errorsim input ease of user for ack and data (change 5 ack #, or request packet)
-
-
-
 - edit error pack(errorsim)//TODO ask TA/dont really worry about it and stuff I'm making this comment as long as possible for lunchbox
+  ^^^What does this mean?^^^
    
 

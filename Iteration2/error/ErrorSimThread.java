@@ -11,6 +11,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import shared.DataHelper;
+import shared.OpCodes;
 
 /**
  * The Thread for the Error simulator, takes init input from the Error simulator then send the request to the server 
@@ -20,6 +21,8 @@ import shared.DataHelper;
  * @author Team6
  */
 public class ErrorSimThread implements Runnable {
+    private static final String ACK = "ack";
+    private static final String DATA = "data";
     private static final int delay = 2000;
     private final Scanner reader;
     private final Logger LOG;
@@ -28,8 +31,8 @@ public class ErrorSimThread implements Runnable {
 	private DatagramPacket initPacket;
 	private int clientPort;
 	private int serverPort = -1;
-	private int packCount = 0;
-	private int packNum = 0;
+	private int blockNum = 0;
+    private String packetType = "";
     private String argument = "";
 	private String mode = "00";
 	private boolean errSocket = false, delayPacket = false, duplicate = false, lost = false;
@@ -153,14 +156,13 @@ public class ErrorSimThread implements Runnable {
 	public void printErrorList() {
 		System.out.print("\nThis is the error SIM. To choose your error, please print exactly what's between the quotations and the packet number afterwards: \n");
 		System.out.print("\"00\": Normal Operations\n");
-		System.out.print("\"01 [2 byte opcode] [packet number]\": Change the OpCode\n");
-	    System.out.print("\"02\": Change to an invalid port number\n");
-	    System.out.print("\"03\": Change to a different Address\n");
-	    System.out.print("\"04\": Change the mode\n");
-	    System.out.print("\"05\": Delay Packet\n");
-	    System.out.print("\"06\": Duplicate Packet\n");
-	    System.out.print("\"07\": Lose Packet\n");
-
+		System.out.print("\"01 [2 byte opcode] [ack|data] [block number]\": Change the OpCode\n");
+	    System.out.print("\"02 [ack|data] [block number]\": Change to an invalid port number\n");
+	    System.out.print("\"03 [ack|data] [block number]\": Change to a different Address\n");
+	    System.out.print("\"04 [mode]\": Change the mode\n");
+	    System.out.print("\"05 [ack|data] [block number]\": Delay Packet\n");
+	    System.out.print("\"06 [ack|data] [block number]\": Duplicate Packet\n");
+	    System.out.print("\"07 [ack|data] [block number]\": Lose Packet\n");
 	    System.out.print("> ");
 	}
 
@@ -207,8 +209,8 @@ public class ErrorSimThread implements Runnable {
 		String args[] = input.split("\\s+");
 
         // All commands must have length two except the normal operation mode and the edited OP code
-        if(args.length != 2 && !(args.length == 1 && Integer.valueOf(args[0]) == 0) &&
-                               !(args.length == 3 && Integer.valueOf(args[0]) == 1)){
+        if(args.length != 3 && !(args.length == 1 && Integer.valueOf(args[0]) == 0) &&
+                               !(args.length == 4 && Integer.valueOf(args[0]) == 1)){
  	  		return false;
  	  	}
 
@@ -216,9 +218,6 @@ public class ErrorSimThread implements Runnable {
  	  	if (Integer.valueOf(args[0]) < 0 || Integer.valueOf(args[0]) > 7) {
  	  		return false;
  	  	}
-
-        // Reset the pack count
-        packCount = 1;
 
         // Set the mode and second argument
  	  	mode = args[0];
@@ -231,22 +230,24 @@ public class ErrorSimThread implements Runnable {
         argument = args[1];
 
         // Check that the argument is valid
-        if (Integer.valueOf(args[0]) == 1 && (argument.length() != 2 || args.length != 3)) {
+        if (Integer.valueOf(args[0]) == 1 && (argument.length() != 2 || args.length != 4)) {
             return false;
         }
 
         // Set the mode to the first packet if the request is to be edited
         if (Integer.valueOf(args[0]) == 4) {
-            packNum = 2;
+            blockNum = -1;
         } else if (Integer.valueOf(args[0]) == 1) {
             // We need to store the last argument instead for edited OP Code
-            packNum = Integer.valueOf(args[2]);
+            packetType = args[2];
+            blockNum = Integer.valueOf(args[3]);
         } else {
             // Otherwise set the packet to the one specified by the user
-            packNum = Integer.valueOf(args[1]);
+            packetType = args[1];
+            blockNum = Integer.valueOf(args[2]);
         }
 
- 	  	return true;
+ 	  	return (packetType.equals(ACK) || packetType.equals(DATA));
 	}
 
     /**
@@ -274,7 +275,7 @@ public class ErrorSimThread implements Runnable {
             serverPort = receivePacket.getPort();
 	    }
 
-	    DataHelper.printPacketData(receivePacket, "ErrorSim Received Packet (" + packCount + ")", true, false);
+	    DataHelper.printPacketData(receivePacket, "ErrorSim Received Packet", true, false);
 
         // If the data packet was received from the server send it to the client and vice versa
 	    if(receivePacket.getPort() == serverPort){
@@ -283,14 +284,16 @@ public class ErrorSimThread implements Runnable {
             receivePacket = new DatagramPacket(receivePacket.getData(), receivePacket.getLength(), receivePacket.getAddress(), serverPort);
 	    }
 
-        // Increase the packet count and check if the packet should be edited to include an error
-	    packCount++;
-	    if(packCount == packNum){
-	    	  // Edit the packet to include error
-	    	  receivePacket = bringError(DataHelper.minimi(receivePacket.getData(), receivePacket.getLength()), receivePacket, receivePacket.getPort());
+        // Check if the packet should be edited to include an error
+        byte[] opCode = Arrays.copyOfRange(receivePacket.getData(), 0, 2);
+	    if(blockNum == DataHelper.getBlockNumber(receivePacket) &&
+                ((packetType.equals(DATA) && Arrays.equals(opCode, OpCodes.DATA_CODE)) ||
+                 (packetType.equals(ACK) && Arrays.equals(opCode, OpCodes.ACK_CODE)))) {
+            // Edit the packet to include error
+            receivePacket = bringError(DataHelper.minimi(receivePacket.getData(), receivePacket.getLength()), receivePacket, receivePacket.getPort());
 	    }
 
-        DataHelper.printPacketData(receivePacket, "ErrorSim Sending Packet (" + packCount + ")", true, false);
+        DataHelper.printPacketData(receivePacket, "ErrorSim Sending Packet", true, false);
 
         // If the packet received is an error packet end the transfer
         if(DataHelper.isErrorPacket(receivePacket)){
@@ -340,8 +343,7 @@ public class ErrorSimThread implements Runnable {
 		DatagramPacket sent = new DatagramPacket(initPacket.getData(), initPacket.getLength(), initPacket.getAddress(), 69);
 
         // Edit the request if that's what the user wants
-        packCount++;
-        if (packCount == packNum) {
+        if (blockNum == -1) {
             sent = bringError(initPacket.getData(), initPacket, 69);
         }
 
