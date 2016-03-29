@@ -2,6 +2,7 @@ package shared;
 
 import exception.AddressException;
 import exception.EPException;
+import exception.IllegalOPException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -83,6 +84,11 @@ public class SocketHelper {
             if(!expectedAddress.equals(packet.getAddress()) || expectedPort != packet.getPort()){
                 throw new AddressException("The address or TID was not correct during transfer: " +
                                            packet.getAddress() + ", " + packet.getPort());
+            }
+            
+            // Check the length of the packet is not larger than 516 bytes
+            if (packet.getLength() > 516) {
+            	throw new IllegalOPException("Packet size was longer than 516 bytes. Found length " + packet.getLength());
             }
 
             // Check the packet is not duplicated ACK
