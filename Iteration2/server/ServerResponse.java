@@ -1,6 +1,7 @@
 package server;
 
 import exception.AddressException;
+import exception.DiskException;
 import exception.EPException;
 import exception.ExistsException;
 import exception.IllegalOPException;
@@ -37,6 +38,7 @@ public class ServerResponse implements Runnable {
 	private int port;
 	private int currBlock = -1;
 	private int timeOutCount = 0;
+	private boolean timedOut = false;
 
 	public ServerResponse(DatagramPacket data) {
         // Configure logger and get it
@@ -121,6 +123,7 @@ public class ServerResponse implements Runnable {
 
                 if (timeOutCount >= 5) {
                     LOG.severe("Timed out too many times, cancelling request...");
+                    timedOut = true;
                     return;
                 }
 			}
@@ -230,6 +233,7 @@ public class ServerResponse implements Runnable {
                                            "): Received Error Packet, Shutting down", ServerSettings.verbose, false);
 	    	} catch (IOException e) {
                 socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, address, port, e);
+                //TODO
             }
 	    } else {
 	    	try {
@@ -239,6 +243,7 @@ public class ServerResponse implements Runnable {
                 socketHelper.sendErrorPacket(ErrorCodes.ACCESS, address, port, e);
 	    	} catch (IllegalOPException e) {
                 socketHelper.sendErrorPacket(ErrorCodes.ILLEGAL_OP, address, port, e);
+                FileHelper.removeFailedFile(FileHelper.getFileFromPacket(initialPacket).getAbsolutePath());
 	    	} catch (AddressException e) {
                 socketHelper.sendErrorPacket(ErrorCodes.UNKNOWN_TID, address, port, e);
 	    	} catch (ExistsException e) {
@@ -246,9 +251,18 @@ public class ServerResponse implements Runnable {
             } catch (EPException e) {
             	DataHelper.printPacketData(e.getPacket(), "Server Thread (" + socket.getLocalPort() +
                                            "): Received Error Packet Shutting down", ServerSettings.verbose, false);
+            	FileHelper.removeFailedFile(FileHelper.getFileFromPacket(initialPacket).getAbsolutePath());
+            } catch(DiskException e){
+            	socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, address, port, e);
+            	FileHelper.removeFailedFile(FileHelper.getFileFromPacket(initialPacket).getAbsolutePath());
             } catch (IOException e) {
                 socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, address, port, e);
             }
+	    	
+	    	if(timedOut){
+	    		timedOut = false;
+	    		FileHelper.removeFailedFile(FileHelper.getFileFromPacket(initialPacket).getAbsolutePath());
+	    	}
 	    }
         System.out.print("\nENTER COMMAND > ");
 	}

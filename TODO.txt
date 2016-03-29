@@ -1,6 +1,7 @@
 TODO:
 
-- half transfered file (file should be deleted if the transfer is incomplete)
+- ***half transfered file (file should be deleted if the transfer is incomplete)*** - Works as far as I know
+										      Should prlly test it more. 
 
 - edit packet in errorsim
 	- change block number (errorsim)

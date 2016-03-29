@@ -36,6 +36,7 @@ public class Client {
     private String saveLocation;
     private InetAddress address, receiveAddress;
     private boolean verbose = false;
+    private boolean timedOut = false;
     private int receivePort = -1;
     private int currBlock;
     
@@ -99,6 +100,7 @@ public class Client {
 
                 if (timeOutCount >= 5) {
                     LOG.severe("Timed out too many times, cancelling request...");
+                    timedOut = true;
                     return;
                 }
         	}
@@ -378,6 +380,8 @@ public class Client {
             LOG.warning("Invalid command entered!");
         }
     }
+    
+   
 
     /**
      * Runs the UI and the commands entered until the user enters the "quit" command
@@ -409,6 +413,9 @@ public class Client {
                     	
                     } catch(IllegalOPException e){
                     	socketHelper.sendErrorPacket(ErrorCodes.ILLEGAL_OP, address, receivePort, e);
+                    	if(args[0].toLowerCase().equals("read")){
+        					FileHelper.removeFailedFile(saveLocation);
+        				}
                     } catch (AddressException e) {
                         socketHelper.sendErrorPacket(ErrorCodes.UNKNOWN_TID, address, receivePort, e);
                 	} catch (FileNotFoundException e) {
@@ -419,14 +426,26 @@ public class Client {
                         socketHelper.sendErrorPacket(ErrorCodes.ACCESS, address, receivePort, e);
         			} catch (DiskException e){
                         socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, address, receivePort, e);
+                        if(args[0].toLowerCase().equals("read")){
+        					FileHelper.removeFailedFile(saveLocation);
+        				}
                     } catch (EPException e) {
         				DataHelper.printPacketData(e.getPacket(), "Client: Error Packet Received", verbose, false);
+        				if(args[0].toLowerCase().equals("read")){
+        					FileHelper.removeFailedFile(saveLocation);
+        				}
         			} catch (IOException e) {
                         LOG.log(Level.SEVERE, e.getMessage(), e);
                     }
                 }
             } else {
                 LOG.warning("Instruction invalid length!");
+            }
+            if(timedOut){
+            	timedOut = false;
+            	if(args[0].toLowerCase().equals("read")){
+					FileHelper.removeFailedFile(saveLocation);
+				}
             }
         }
         

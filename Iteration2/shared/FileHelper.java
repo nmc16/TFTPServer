@@ -11,6 +11,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.AccessControlException;
 import java.security.AccessController;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Shared methods to help with file I/O Operations. Deals with reads and writes and is able to do file
@@ -207,5 +209,16 @@ public class FileHelper {
                 }
             }
         }
+    }
+    
+    public static synchronized void removeFailedFile(String location){
+    	DataHelper.configLogger();
+    	Logger log = Logger.getLogger("global");
+    	Path path = Paths.get(location);
+    	try {
+			Files.deleteIfExists(path);
+		} catch (IOException e) {
+			log.log(Level.SEVERE, e.getMessage(), e);
+		} 
     }
 }
