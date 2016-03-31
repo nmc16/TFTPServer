@@ -172,10 +172,14 @@ public class ServerResponse implements Runnable {
 		    	break;
 		    }
 
+		    PacketResult result;
 	    	while(true){
-                PacketResult result = socketHelper.receiveWithTimeout(timeOutCount, responseData, address, port, currBlock);
+                result = socketHelper.receiveWithTimeout(timeOutCount, responseData, address, port, currBlock);
+                if (!result.isDuplicatedData() && result.isSuccess()) {
+                	currBlock = DataHelper.getBlockNumber(result.getPacket());
+                }
+                
                 if (result.isSuccess()) {
-                    currBlock = DataHelper.getBlockNumber(result.getPacket());
                     address = result.getPacket().getAddress();
                     port = result.getPacket().getPort();
                     data = result.getPacket();
@@ -188,6 +192,7 @@ public class ServerResponse implements Runnable {
 
                 if (timeOutCount >= 5) {
                     LOG.severe("Timed out too many times, cancelling request...");
+                    timedOut = true;
                     return;
                 }
             }
@@ -208,8 +213,10 @@ public class ServerResponse implements Runnable {
 	    		flag = true;
 	    	}
 	    	
-	    	String contents = new String(b);
-			FileHelper.writeFile(contents, file);
+	    	if (!result.isDuplicatedData()) {
+	    		String contents = new String(b);
+	    		FileHelper.writeFile(contents, file);
+	    	}
 		}
 	}
 
@@ -219,7 +226,6 @@ public class ServerResponse implements Runnable {
 	    if (initialPacket.getData()[1] == RRQ) {
 	    	try {
 	    		readFile();
-                return;
 	    	} catch (FileNotFoundException e) {
 	    		socketHelper.sendErrorPacket(ErrorCodes.FILE_NOT_FOUND, address, port, e);
 	    	} catch (SecurityException e) {
@@ -238,7 +244,6 @@ public class ServerResponse implements Runnable {
 	    } else {
 	    	try {
 	    		writeToFile();
-                return;
 	    	} catch (SecurityException e) {
                 socketHelper.sendErrorPacket(ErrorCodes.ACCESS, address, port, e);
 	    	} catch (IllegalOPException e) {

@@ -2,6 +2,7 @@ package shared;
 
 import exception.AddressException;
 import exception.EPException;
+import exception.IllegalOPException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -20,6 +21,7 @@ import java.util.logging.Logger;
  * @author Team6
  */
 public class SocketHelper {
+	private static final int ERROR_SIM_PORT = 68;
     private final Logger LOG;
     private final DatagramSocket socket;
 
@@ -53,12 +55,11 @@ public class SocketHelper {
                                            int expectedPort, int block) throws IOException {
         
         PacketResult result = new PacketResult(false, false);
-        byte[] buffer = new byte[516];
+        byte[] buffer = new byte[1024];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 
         // Block until a datagram is received via sendReceiveSocket.
-        // TODO this needs to be changed, client should be able to timeout on request
-        if(response != null && response.getPort() != 68){
+        if(response != null && response.getPort() != ERROR_SIM_PORT){
             socket.setSoTimeout(1000);
         } else {
             socket.setSoTimeout(0);
@@ -70,7 +71,7 @@ public class SocketHelper {
 
             // If the packet is an error, throw an exception
             if (DataHelper.isErrorPacket(packet)) {
-                throw new EPException("Error packet received from Client!", packet);
+                throw new EPException("Error packet received!", packet);
             }
 
             // Update the address and port if not already updated
@@ -81,19 +82,29 @@ public class SocketHelper {
 
             // Check that the address and port received are the ones we were expecting
             if(!expectedAddress.equals(packet.getAddress()) || expectedPort != packet.getPort()){
-                throw new AddressException("The address or TID was not correct during transfer: " +
-                                           packet.getAddress() + ", " + packet.getPort());
+            	sendErrorPacket(ErrorCodes.UNKNOWN_TID, packet.getAddress(), packet.getPort(), new AddressException("The address or TID was not correct during transfer: " +
+                                packet.getAddress() + ", " + packet.getPort()));
+            	result.setPacket(packet);
+            	result.setSuccess(false);
+                return result;
+            }
+            
+            // Check the length of the packet is not larger than 516 bytes
+            byte[] opCode = Arrays.copyOfRange(packet.getData(), 0, 2);
+            if (packet.getLength() > 516 && Arrays.equals(opCode, OpCodes.DATA_CODE) || packet.getLength() != 4 && Arrays.equals(opCode, OpCodes.ACK_CODE)) {
+            	throw new IllegalOPException("Packet size was longer than the allowed size bytes (" + (Arrays.equals(opCode, OpCodes.DATA_CODE) ? "DATA 516": "ACK 4") + 
+            			                     "). Found length " + packet.getLength());
             }
 
             // Check the packet is not duplicated ACK
-            byte[] opCode = Arrays.copyOfRange(packet.getData(), 0, 2);
             if (block + 1 == DataHelper.getBlockNumber(packet) || block == 0 && DataHelper.getBlockNumber(packet) == 0) {
             	result.setSuccess(true);
                 result.setPacket(packet);
                 return result;
-            } else if(Arrays.equals(opCode, OpCodes.DATA_CODE)){
+            } else if (Arrays.equals(opCode, OpCodes.DATA_CODE) && block != DataHelper.getBlockNumber(packet)) {
             	LOG.warning("Received duplicate DATA packet");
             	result.setSuccess(true);
+            	result.setDuplicateData(true);
                 result.setPacket(packet);
                 return result;
             }
@@ -142,7 +153,7 @@ public class SocketHelper {
 
         // Log the error code that has occurred
         System.out.println();
-        LOG.severe("Error code " + errCode[0] + errCode[1] + " has occurred. Closing the current request..." +
+        LOG.severe("Error code " + errCode[0] + errCode[1] + " has occurred." + (cause instanceof AddressException ? "" : "Closing the current request...") +
                    "\n\tCause of error: " + cause.getMessage());
 
         // Create the packet and send it using the socket

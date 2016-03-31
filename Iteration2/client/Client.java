@@ -83,11 +83,14 @@ public class Client {
         	int timeOutCount = 0;
         	byte data[] = new byte[516];
         	receivePacket = new DatagramPacket(data, data.length);
-
+        	PacketResult result;
         	while(true){
-                PacketResult result = socketHelper.receiveWithTimeout(timeOutCount, response, receiveAddress, receivePort, currBlock);
+                result = socketHelper.receiveWithTimeout(timeOutCount, response, receiveAddress, receivePort, currBlock);
+                if (!result.isDuplicatedData() && result.isSuccess()) {
+                	currBlock = DataHelper.getBlockNumber(result.getPacket());
+                }
+                
                 if (result.isSuccess()) {
-                    currBlock = DataHelper.getBlockNumber(result.getPacket());
                     receiveAddress = result.getPacket().getAddress();
                     receivePort = result.getPacket().getPort();
                     receivePacket = result.getPacket();
@@ -147,7 +150,9 @@ public class Client {
                 byte[] minimized = DataHelper.minimi(transferred, transferred.length);
 
                 // Write the data to the file location
-                FileHelper.writeFile(new String(minimized), new File(saveLocation));
+                if (!result.isDuplicatedData()) {
+                	FileHelper.writeFile(new String(minimized), new File(saveLocation));
+                }
                                 
                 // Check if there is more data to be read or not
                 if (minimized.length < 512) {

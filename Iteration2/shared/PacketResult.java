@@ -11,6 +11,7 @@ import java.net.DatagramPacket;
 public class PacketResult {
     private boolean timeOut;
     private boolean success;
+    private boolean duplicateData;
     private DatagramPacket packet;
 
     public PacketResult() {}
@@ -18,10 +19,15 @@ public class PacketResult {
     public PacketResult(boolean timeOut, boolean success) {
         this.timeOut = timeOut;
         this.success = success;
+        this.duplicateData = false;
     }
 
     public void setPacket(DatagramPacket packet) {
         this.packet = packet;
+    }
+    
+    public void setDuplicateData(boolean duplicateData) {
+    	this.duplicateData = duplicateData;
     }
 
     public void setTimeOut(boolean timeOut) {
@@ -34,6 +40,10 @@ public class PacketResult {
 
     public DatagramPacket getPacket() {
         return packet;
+    }
+    
+    public boolean isDuplicatedData() {
+    	return duplicateData;
     }
 
     public boolean isTimeOut() {
