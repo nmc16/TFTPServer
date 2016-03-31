@@ -35,7 +35,7 @@ public class ErrorSimThread implements Runnable {
     private String packetType = "";
     private String argument = "";
 	private String mode = "00";
-	private boolean errSocket = false, delayPacket = false, duplicate = false, lost = false;
+	private boolean errSocket = false, delayPacket = false, duplicate = false, lost = false, errorSent = false;
 	
 	public ErrorSimThread(DatagramPacket packet, Scanner reader) {
 		// Store the instance variables
@@ -138,6 +138,11 @@ public class ErrorSimThread implements Runnable {
         	// Copy into new array with new length and return the datagram packet with the new length
         	byte[] bytes = Arrays.copyOf(newMsg, Integer.valueOf(argument));
         	return new DatagramPacket(bytes, bytes.length, received.getAddress(), port);
+        } else if (mode.equals("09") && !errorSent) {
+        	byte[] bytes = DataHelper.getNewBlock(Integer.valueOf(argument));
+            newMsg[2] = bytes[0];
+            newMsg[3] = bytes[1];
+            errorSent = true;
         }
 
         return new DatagramPacket(newMsg, received.getLength(), received.getAddress(), port);
@@ -169,6 +174,7 @@ public class ErrorSimThread implements Runnable {
 	    System.out.print("\"06 [ack|data] [block number]\": Duplicate Packet\n");
 	    System.out.print("\"07 [ack|data] [block number]\": Lose Packet\n");
 	    System.out.print("\"08 [new length] [ack|data] [block number]\": Change packet length\n");
+	    System.out.print("\"09 [2 byte Block Number] [ack|data] [block number]\": Change packet block number\n");
 	    System.out.print("> ");
 	}
 
@@ -216,13 +222,12 @@ public class ErrorSimThread implements Runnable {
 
         // All commands must have length two except the normal operation mode and the edited OP code
         if (args.length != 3 && !(args.length == 1 && Integer.valueOf(args[0]) == 0) &&
-                                !(args.length == 4 && Integer.valueOf(args[0]) == 1) &&
-                                !(args.length == 4 && Integer.valueOf(args[0]) == 8)) {
+                                !(args.length == 4 && (Integer.valueOf(args[0]) == 1 || Integer.valueOf(args[0]) == 8 || Integer.valueOf(args[0]) == 9))) {
  	  		return false;
  	  	}
 
         // Check that the number represents one of our op modes
- 	  	if (Integer.valueOf(args[0]) < 0 || Integer.valueOf(args[0]) > 8) {
+ 	  	if (Integer.valueOf(args[0]) < 0 || Integer.valueOf(args[0]) > 9) {
  	  		return false;
  	  	}
 
@@ -237,7 +242,7 @@ public class ErrorSimThread implements Runnable {
         argument = args[1];
 
         // Check that the argument is valid
-        if (Integer.valueOf(args[0]) == 1 && (argument.length() != 2 || args.length != 4)) {
+        if ((Integer.valueOf(args[0]) == 1 || Integer.valueOf(args[0]) == 9) && (argument.length() != 2 || args.length != 4)) {
             return false;
         } else if (Integer.valueOf(args[0]) == 8 && args.length != 4) {
         	return false;
@@ -246,7 +251,7 @@ public class ErrorSimThread implements Runnable {
         // Set the mode to the first packet if the request is to be edited
         if (Integer.valueOf(args[0]) == 4) {
             blockNum = -1;
-        } else if (Integer.valueOf(args[0]) == 1 || Integer.valueOf(args[0]) == 8) {
+        } else if (Integer.valueOf(args[0]) == 1 || Integer.valueOf(args[0]) == 8 || Integer.valueOf(args[0]) == 9) {
             // We need to store the last argument instead for edited OP Code
             packetType = args[2];
             blockNum = Integer.valueOf(args[3]);

@@ -3,10 +3,6 @@ TODO:
 - ***half transfered file (file should be deleted if the transfer is incomplete)*** - Works as far as I know
 										      Should prlly test it more. 
 
-- edit packet in errorsim
-	- change block number (errorsim)
-	- make file size > 516 - If file size was meant to be packet size then this is done
-
 - ALL DIAGRAMS
 
 - error 5, invaild TID send error packet to the inv TID and then treat as a lost packet
