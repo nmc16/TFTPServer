@@ -71,7 +71,7 @@ public class SocketHelper {
 
             // If the packet is an error, throw an exception
             if (DataHelper.isErrorPacket(packet)) {
-                throw new EPException("Error packet received from Client!", packet);
+                throw new EPException("Error packet received!", packet);
             }
 
             // Update the address and port if not already updated
@@ -82,8 +82,11 @@ public class SocketHelper {
 
             // Check that the address and port received are the ones we were expecting
             if(!expectedAddress.equals(packet.getAddress()) || expectedPort != packet.getPort()){
-                throw new AddressException("The address or TID was not correct during transfer: " +
-                                           packet.getAddress() + ", " + packet.getPort());
+            	sendErrorPacket(ErrorCodes.UNKNOWN_TID, packet.getAddress(), packet.getPort(), new AddressException("The address or TID was not correct during transfer: " +
+                                packet.getAddress() + ", " + packet.getPort()));
+            	result.setPacket(packet);
+            	result.setSuccess(false);
+                return result;
             }
             
             // Check the length of the packet is not larger than 516 bytes
@@ -150,7 +153,7 @@ public class SocketHelper {
 
         // Log the error code that has occurred
         System.out.println();
-        LOG.severe("Error code " + errCode[0] + errCode[1] + " has occurred. Closing the current request..." +
+        LOG.severe("Error code " + errCode[0] + errCode[1] + " has occurred." + (cause instanceof AddressException ? "" : "Closing the current request...") +
                    "\n\tCause of error: " + cause.getMessage());
 
         // Create the packet and send it using the socket

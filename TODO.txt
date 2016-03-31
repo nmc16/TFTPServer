@@ -5,14 +5,6 @@ TODO:
 
 - ALL DIAGRAMS
 
-- error 5, invaild TID send error packet to the inv TID and then treat as a lost packet
-
-- loss packet fix timeouts// offset one of the timeouts - Don't think its fixable/a problem
-
-- fix neagative values for data output/ block num - Fixed kinda, basic explanation is that java has no unsigned
-                                                    values, so just changed the printing instead of trying to find
-                                                    a ridiculous work around.
-
 - edit error pack(errorsim)//TODO ask TA/dont really worry about it and stuff I'm making this comment as long as possible for lunchbox
   ^^^What does this mean?^^^
    

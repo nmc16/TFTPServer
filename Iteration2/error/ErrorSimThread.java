@@ -111,11 +111,17 @@ public class ErrorSimThread implements Runnable {
 
         } else if(mode.equals("02")){
         	// Use a socket with a different port
-        	errSocket = true;
+        	if (!errorSent) {
+        		errorSent = true;
+        		errSocket = true;
+        	}
 
         } else if(mode.equals("03")){
         	// Use socket with different InetAddress
-        	errSocket = true;
+        	if (!errorSent) {
+        		errorSent = true;
+        		errSocket = true;
+        	}
 
         } else if(mode.equals("04")){
         	// Edit the last bit of the mode to make it invalid
