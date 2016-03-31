@@ -21,6 +21,7 @@ import java.util.logging.Logger;
  * @author Team6
  */
 public class SocketHelper {
+	private static final int ERROR_SIM_PORT = 68;
     private final Logger LOG;
     private final DatagramSocket socket;
 
@@ -54,12 +55,11 @@ public class SocketHelper {
                                            int expectedPort, int block) throws IOException {
         
         PacketResult result = new PacketResult(false, false);
-        byte[] buffer = new byte[516];
+        byte[] buffer = new byte[1024];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 
         // Block until a datagram is received via sendReceiveSocket.
-        // TODO this needs to be changed, client should be able to timeout on request
-        if(response != null && response.getPort() != 68){
+        if(response != null && response.getPort() != ERROR_SIM_PORT){
             socket.setSoTimeout(1000);
         } else {
             socket.setSoTimeout(0);
@@ -87,12 +87,13 @@ public class SocketHelper {
             }
             
             // Check the length of the packet is not larger than 516 bytes
-            if (packet.getLength() > 516) {
-            	throw new IllegalOPException("Packet size was longer than 516 bytes. Found length " + packet.getLength());
+            byte[] opCode = Arrays.copyOfRange(packet.getData(), 0, 2);
+            if (packet.getLength() > 516 && Arrays.equals(opCode, OpCodes.DATA_CODE) || packet.getLength() != 4 && Arrays.equals(opCode, OpCodes.ACK_CODE)) {
+            	throw new IllegalOPException("Packet size was longer than the allowed size bytes (" + (Arrays.equals(opCode, OpCodes.DATA_CODE) ? "DATA 516": "ACK 4") + 
+            			                     "). Found length " + packet.getLength());
             }
 
             // Check the packet is not duplicated ACK
-            byte[] opCode = Arrays.copyOfRange(packet.getData(), 0, 2);
             if (block + 1 == DataHelper.getBlockNumber(packet) || block == 0 && DataHelper.getBlockNumber(packet) == 0) {
             	result.setSuccess(true);
                 result.setPacket(packet);
