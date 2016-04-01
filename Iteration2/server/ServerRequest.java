@@ -4,6 +4,7 @@ import exception.IllegalOPException;
 import shared.DataHelper;
 import shared.ErrorCodes;
 import shared.FileHelper;
+import shared.InetHelper;
 import shared.SocketHelper;
 
 import java.io.IOException;
@@ -42,7 +43,7 @@ public class ServerRequest implements Runnable {
 
         try {
         	// Get the site local address
-            String siteLocalAddress = InetAddress.getLocalHost().getHostAddress();
+            String siteLocalAddress = InetHelper.getIPAddress();
             InetAddress socketAddress = InetAddress.getByName(siteLocalAddress);
         	
             receiveSocket = new DatagramSocket(69, socketAddress);
