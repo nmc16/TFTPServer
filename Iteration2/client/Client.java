@@ -49,8 +49,15 @@ public class Client {
         try {
         	// Randomize a port number and create the socket
             Random r = new Random();
+            int socketPort = r.nextInt(65553);
+            
+            // Get the site local address
+            String siteLocalAddress = InetAddress.getLocalHost().getHostAddress();
+            InetAddress socketAddress = InetAddress.getByName(siteLocalAddress);
+            
             //this.address = InetAddress.getLocalHost();
-            sendReceiveSocket = new DatagramSocket(r.nextInt(65553));
+            sendReceiveSocket = new DatagramSocket(socketPort, socketAddress);
+            LOG.info("Client is broadcasting on address: " + siteLocalAddress + " and port: " + socketPort + ".");
         } catch (IOException e) {
             LOG.log(Level.SEVERE, e.getMessage(), e);
             System.exit(1);

@@ -52,7 +52,14 @@ public class ServerResponse implements Runnable {
 	    try {
             // Randomize port number to use for socket
 	    	Random r = new Random();
-            socket = new DatagramSocket(r.nextInt(65500));
+	    	int socketPort = r.nextInt(65553);
+	    	
+	    	// Get the site local address
+            String siteLocalAddress = InetAddress.getLocalHost().getHostAddress();
+            InetAddress socketAddress = InetAddress.getByName(siteLocalAddress);
+            
+            socket = new DatagramSocket(socketPort, socketAddress);
+            LOG.info("Response Thread is broadcasting on address: " + siteLocalAddress + " and port: " + socketPort + ".");
 	    } catch (IOException e) {
             // If there is an error in creation, exit the thread
 	        LOG.log(Level.SEVERE, e.getMessage(), e);

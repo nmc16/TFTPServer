@@ -9,7 +9,7 @@ import shared.SocketHelper;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.SocketException;
+import java.net.InetAddress;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,24 +32,30 @@ public class ServerRequest implements Runnable {
     private ArrayList<String> filesInUse;
 
     public ServerRequest() {
+    	// Set up the Logger
+        DataHelper.configLogger();
+        LOG = Logger.getLogger("global");
+        
+        // Set up the lists for tracking requests
         openRequests = new ArrayList<Thread>();
         filesInUse = new ArrayList<String>();
 
         try {
-            receiveSocket = new DatagramSocket(69);
+        	// Get the site local address
+            String siteLocalAddress = InetAddress.getLocalHost().getHostAddress();
+            InetAddress socketAddress = InetAddress.getByName(siteLocalAddress);
+        	
+            receiveSocket = new DatagramSocket(69, socketAddress);
             receiveSocket.setSoTimeout(1000);
-        } catch (SocketException se) {
-            se.printStackTrace();
+            
+            LOG.info("Server is broadcasting on address: " + siteLocalAddress + " and port: " + 69 + ".");
+        } catch (IOException e) {
+            LOG.log(Level.SEVERE, e.getMessage(), e);
             System.exit(1);
         }
 
         // Set up the SocketHelper
         socketHelper = new SocketHelper(receiveSocket);
-
-        // Set up the Logger
-        DataHelper.configLogger();
-        LOG = Logger.getLogger("global");
-        LOG.info("Server broadcasting at address: " + receiveSocket.getInetAddress() + " and port: " + receiveSocket.getPort());
     }
 
     /**
