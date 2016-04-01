@@ -55,7 +55,7 @@ public class ServerResponse implements Runnable {
 	    	int socketPort = r.nextInt(65553);
 	    	
 	    	// Get the site local address
-            String siteLocalAddress = InetAddress.getLocalHost().getHostAddress();
+            String siteLocalAddress = InetHelper.getIPAddress();
             InetAddress socketAddress = InetAddress.getByName(siteLocalAddress);
             
             socket = new DatagramSocket(socketPort, socketAddress);

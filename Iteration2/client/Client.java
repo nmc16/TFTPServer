@@ -47,12 +47,13 @@ public class Client {
         LOG = Logger.getLogger("global");
 
         try {
+        	System.out.println(InetAddress.getByName("cb5109-46"));
         	// Randomize a port number and create the socket
             Random r = new Random();
             int socketPort = r.nextInt(65553);
             
             // Get the site local address
-            String siteLocalAddress = InetAddress.getLocalHost().getHostAddress();
+            String siteLocalAddress = InetHelper.getIPAddress();
             InetAddress socketAddress = InetAddress.getByName(siteLocalAddress);
             
             //this.address = InetAddress.getLocalHost();
