@@ -7,6 +7,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import shared.DataHelper;
+import shared.InetHelper;
 
 /**
  * Main error simulator creates the {@link error.ErrorSimThread} threads for each new client request.
@@ -28,8 +29,13 @@ public class ErrorSim {
 
         // Set up the socket to receive requests on
 		try {
-			receiveSocket = new DatagramSocket(68);
-		} catch (SocketException se) {
+			// Get the site local address
+            String siteLocalAddress = InetHelper.getIPAddress();
+            InetAddress socketAddress = InetAddress.getByName(siteLocalAddress);
+            
+			receiveSocket = new DatagramSocket(68, socketAddress);
+			LOG.info("ErrorSim is broadcasting on address: " + siteLocalAddress + " and port: " + 68 + ".");
+		} catch (IOException se) {
 			LOG.log(Level.SEVERE, se.getMessage(), se);
 			System.exit(1);
 		} 
@@ -41,7 +47,21 @@ public class ErrorSim {
 	 */
 	public void receiveAndEcho() {
         LOG.info("Error Simulator started. Waiting to receive packet...");
-      
+        InetAddress address;
+        while(true) {
+ 		   try {
+ 			   // Get the server address
+ 			   System.out.print("Please enter server address > ");
+ 			   String s = READER.nextLine();
+ 			   
+ 			   // Try and resolve the host
+ 			   address = InetAddress.getByName(s);
+ 			   break;
+ 		   } catch (UnknownHostException e) {
+ 			   // Do nothing
+ 		   }
+ 	   }
+        
 		while(true){
             // Create the receive packet for the request
             byte data[] = new byte[516];
@@ -60,7 +80,7 @@ public class ErrorSim {
 
             // Start a new thread to deal with the request
             LOG.info("Starting new request thread...");
-			Thread t = new Thread(new ErrorSimThread(receivePacket, READER));
+			Thread t = new Thread(new ErrorSimThread(receivePacket, READER, address));
 			t.start();
 		}
 

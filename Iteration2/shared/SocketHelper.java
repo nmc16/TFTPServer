@@ -68,7 +68,7 @@ public class SocketHelper {
         try {
             // Receive the packet
             socket.receive(packet);
-
+            
             // If the packet is an error, throw an exception
             if (DataHelper.isErrorPacket(packet)) {
                 throw new EPException("Error packet received!", packet);

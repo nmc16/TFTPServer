@@ -4,13 +4,15 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.SocketException;
+import java.net.InetAddress;
 import java.util.Arrays;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import shared.DataHelper;
+import shared.InetHelper;
 import shared.OpCodes;
 
 /**
@@ -36,24 +38,34 @@ public class ErrorSimThread implements Runnable {
     private String argument = "";
 	private String mode = "00";
 	private boolean errSocket = false, delayPacket = false, duplicate = false, lost = false, errorSent = false;
+	private InetAddress requestAddress, clientAddress, responseAddress;
 	
-	public ErrorSimThread(DatagramPacket packet, Scanner reader) {
+	public ErrorSimThread(DatagramPacket packet, Scanner reader, InetAddress address) {
 		// Store the instance variables
         this.clientPort = packet.getPort();
 		this.initPacket= packet;
 		this.reader = reader;
-
+		requestAddress = address;
+		clientAddress = packet.getAddress();
+		
         // Configure the logger
         DataHelper.configLogger();
         LOG = Logger.getLogger("global");
 
 		try {
+			// Randomize a port number and create the socket
+            Random r = new Random();
+            
+			// Get the site local address
+            String siteLocalAddress = InetHelper.getIPAddress();
+            InetAddress socketAddress = InetAddress.getByName(siteLocalAddress);
+            
             // Set up the regular socket and the incorrect port socket
-			sendReceiveSocket = new DatagramSocket();
-			errorSendSocket = new DatagramSocket();
+			sendReceiveSocket = new DatagramSocket(r.nextInt(65553), socketAddress);
+			errorSendSocket = new DatagramSocket(r.nextInt(65553), socketAddress);
 
-		} catch (SocketException se) {
-			LOG.log(Level.SEVERE, se.getMessage(), se);
+		} catch (IOException e) {
+			LOG.log(Level.SEVERE, e.getMessage(), e);
 			System.exit(1);
 		} 
 	}
@@ -294,14 +306,18 @@ public class ErrorSimThread implements Runnable {
 	    if (serverPort == -1) {
             serverPort = receivePacket.getPort();
 	    }
+	    
+	    if (responseAddress == null) {
+	    	responseAddress = receivePacket.getAddress();
+	    }
 
 	    DataHelper.printPacketData(receivePacket, "ErrorSim Received Packet", true, false);
 
         // If the data packet was received from the server send it to the client and vice versa
 	    if(receivePacket.getPort() == serverPort){
-            receivePacket = new DatagramPacket(receivePacket.getData(), receivePacket.getLength(), receivePacket.getAddress(), clientPort);
+            receivePacket = new DatagramPacket(receivePacket.getData(), receivePacket.getLength(), clientAddress, clientPort);
 	    } else {
-            receivePacket = new DatagramPacket(receivePacket.getData(), receivePacket.getLength(), receivePacket.getAddress(), serverPort);
+            receivePacket = new DatagramPacket(receivePacket.getData(), receivePacket.getLength(), responseAddress, serverPort);
 	    }
 
         // Check if the packet should be edited to include an error
@@ -334,7 +350,8 @@ public class ErrorSimThread implements Runnable {
             LOG.info("This packet will be delayed by 2 seconds...");
             delayPacket(receivePacket);
 	    } else{
-	    	  sendUsingSocket(receivePacket);
+	    	LOG.info("Sending packet...");
+	    	sendUsingSocket(receivePacket);
 	    }
 
 		return true;
@@ -360,10 +377,11 @@ public class ErrorSimThread implements Runnable {
 		}
 
         // Create the datagram packet for the request
-		DatagramPacket sent = new DatagramPacket(initPacket.getData(), initPacket.getLength(), initPacket.getAddress(), 69);
+		DatagramPacket sent = new DatagramPacket(initPacket.getData(), initPacket.getLength(), requestAddress, 69);
 
         // Edit the request if that's what the user wants
         if (blockNum == -1) {
+        	initPacket.setAddress(requestAddress);
             sent = bringError(initPacket.getData(), initPacket, 69);
         }
 

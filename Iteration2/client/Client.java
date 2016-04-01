@@ -35,7 +35,7 @@ public class Client {
     private DatagramPacket receivePacket;
     private DatagramSocket sendReceiveSocket;
     private String saveLocation;
-    private InetAddress address, receiveAddress;
+    private InetAddress address, receiveAddress, errorSimAddress;
     private boolean verbose = false;
     private boolean timedOut = false;
     private int receivePort = -1;
@@ -47,7 +47,6 @@ public class Client {
         LOG = Logger.getLogger("global");
 
         try {
-        	System.out.println(InetAddress.getByName("cb5109-46"));
         	// Randomize a port number and create the socket
             Random r = new Random();
             int socketPort = r.nextInt(65553);
@@ -55,6 +54,7 @@ public class Client {
             // Get the site local address
             String siteLocalAddress = InetHelper.getIPAddress();
             InetAddress socketAddress = InetAddress.getByName(siteLocalAddress);
+            errorSimAddress = socketAddress;
             
             //this.address = InetAddress.getLocalHost();
             sendReceiveSocket = new DatagramSocket(socketPort, socketAddress);
@@ -237,7 +237,7 @@ public class Client {
 
         // Change the port for the request based on the user selected mode
         if (packetMode == 1) {
-            return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, ERROR_SIM_PORT);
+            return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, errorSimAddress, ERROR_SIM_PORT);
         } else {
             return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, SERVER_PORT);
         }
@@ -264,7 +264,7 @@ public class Client {
 
         buffer.write(data, 0, data.length);
 
-        return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, address, port);
+        return new DatagramPacket(buffer.toByteArray(), buffer.toByteArray().length, receiveAddress, port);
     }
 
     /**
@@ -343,19 +343,47 @@ public class Client {
      * @param args Arguments passed from UI
      */
     private void runMode(String args[]) {
+        if (args.length < 2 && args.length > 3) {
+            LOG.warning("Instruction invalid length!");
+            return;
+        }
+
+        // Check the mode entered and the length are valid
+        if (args[1].toLowerCase().equals("test") && args.length == 3) {
+            try {
+            	// Attempt to acquire the host address
+            	errorSimAddress = InetAddress.getByName(args[2]);
+            	
+            	// Set the packet mode
+            	packetMode = 1;
+            	LOG.info("Mode set to test!");
+            } catch (UnknownHostException e) {
+            	LOG.warning("Unable to connect to host name: " + args[1] + "!");
+            }
+        } else if (args[1].toLowerCase().equals("normal") && args.length == 2) {
+            packetMode = 0;
+            LOG.info("Mode set to normal!");
+        } else {
+        	LOG.warning("Instruction invalid length or invalid mode given!");
+        }
+    }
+    
+    /**
+     * Sets the mode given the user input. If the mode is set to 1, it is in test mode and the packets will
+     * be sent to the error sim. If the mode is 0 then the packets will be sent directly to the server.
+     *
+     * @param args Arguments passed from UI
+     */
+    private void runConnect(String args[]) {
         if (args.length != 2) {
             LOG.warning("Instruction invalid length!");
             return;
         }
 
-        if (args[1].toLowerCase().equals("test")) {
-            packetMode = 1;
-            LOG.info("Mode set to test!");
-        } else if (args[1].toLowerCase().equals("normal")) {
-            packetMode = 0;
-            LOG.info("Mode set to normal!");
-        } else {
-            LOG.warning("Not valid mode!");
+        try {
+        	address = InetAddress.getByName(args[1]);
+        } catch (UnknownHostException e) {
+        	LOG.warning("Unable to connect to host name: " + args[1] + "!");
         }
     }
 
@@ -390,17 +418,21 @@ public class Client {
         } else if (args[0].toLowerCase().equals("mode")) {
             runMode(args);
 
+        } else if (args[0].toLowerCase().equals("connect")) {
+            runConnect(args);
         } else {
-            LOG.warning("Invalid command entered!");
+        	LOG.warning("Invalid command entered!");
         }
     }
     
    public void getAddress(Scanner reader) {
 	   while(true) {
-		   System.out.print("Please enter server address > ");
-		   String s = reader.nextLine();
-	   
 		   try {
+			   // Get the server address
+			   System.out.print("Please enter server address > ");
+			   String s = reader.nextLine();
+			   
+			   // Try and resolve the host
 			   address = InetAddress.getByName(s);
 			   break;
 		   } catch (UnknownHostException e) {
@@ -442,20 +474,20 @@ public class Client {
                     	runCommand(args);
                     	
                     } catch(IllegalOPException e){
-                    	socketHelper.sendErrorPacket(ErrorCodes.ILLEGAL_OP, address, receivePort, e);
+                    	socketHelper.sendErrorPacket(ErrorCodes.ILLEGAL_OP, receiveAddress, receivePort, e);
                     	if(args[0].toLowerCase().equals("read")){
         					FileHelper.removeFailedFile(saveLocation);
         				}
                     } catch (AddressException e) {
-                        socketHelper.sendErrorPacket(ErrorCodes.UNKNOWN_TID, address, receivePort, e);
+                        socketHelper.sendErrorPacket(ErrorCodes.UNKNOWN_TID, receiveAddress, receivePort, e);
                 	} catch (FileNotFoundException e) {
-                        socketHelper.sendErrorPacket(ErrorCodes.FILE_NOT_FOUND, address, receivePort, e);
+                        socketHelper.sendErrorPacket(ErrorCodes.FILE_NOT_FOUND, receiveAddress, receivePort, e);
         			} catch (ExistsException e){
-                        socketHelper.sendErrorPacket(ErrorCodes.FILE_EXISTS, address, receivePort, e);
+                        socketHelper.sendErrorPacket(ErrorCodes.FILE_EXISTS, receiveAddress, receivePort, e);
         			} catch (SecurityException e){
-                        socketHelper.sendErrorPacket(ErrorCodes.ACCESS, address, receivePort, e);
+                        socketHelper.sendErrorPacket(ErrorCodes.ACCESS, receiveAddress, receivePort, e);
         			} catch (DiskException e){
-                        socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, address, receivePort, e);
+                        socketHelper.sendErrorPacket(ErrorCodes.DISK_ERROR, receiveAddress, receivePort, e);
                         if(args[0].toLowerCase().equals("read")){
         					FileHelper.removeFailedFile(saveLocation);
         				}
