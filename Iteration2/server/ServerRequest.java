@@ -49,6 +49,7 @@ public class ServerRequest implements Runnable {
         // Set up the Logger
         DataHelper.configLogger();
         LOG = Logger.getLogger("global");
+        LOG.info("Server broadcasting at address: " + receiveSocket.getInetAddress() + " and port: " + receiveSocket.getPort());
     }
 
     /**

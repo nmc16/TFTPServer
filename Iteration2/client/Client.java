@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Random;
@@ -48,7 +49,7 @@ public class Client {
         try {
         	// Randomize a port number and create the socket
             Random r = new Random();
-            this.address = InetAddress.getLocalHost();
+            //this.address = InetAddress.getLocalHost();
             sendReceiveSocket = new DatagramSocket(r.nextInt(65553));
         } catch (IOException e) {
             LOG.log(Level.SEVERE, e.getMessage(), e);
@@ -386,7 +387,19 @@ public class Client {
         }
     }
     
-   
+   public void getAddress(Scanner reader) {
+	   while(true) {
+		   System.out.print("Please enter server address > ");
+		   String s = reader.nextLine();
+	   
+		   try {
+			   address = InetAddress.getByName(s);
+			   break;
+		   } catch (UnknownHostException e) {
+			   // Do nothing
+		   }
+	   }
+   }
 
     /**
      * Runs the UI and the commands entered until the user enters the "quit" command
@@ -395,6 +408,10 @@ public class Client {
     public void run() {
         Scanner reader = new Scanner(System.in);
         LOG.info("Starting client...");
+        
+        // Get the address to connect to
+        getAddress(reader);
+        
         printMenu();
 
         while(true) {
