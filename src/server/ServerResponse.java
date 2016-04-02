@@ -59,7 +59,6 @@ public class ServerResponse implements Runnable {
             InetAddress socketAddress = InetAddress.getByName(siteLocalAddress);
             
             socket = new DatagramSocket(socketPort, socketAddress);
-            LOG.info("Response Thread is broadcasting on address: " + siteLocalAddress + " and port: " + socketPort + ".");
 	    } catch (IOException e) {
             // If there is an error in creation, exit the thread
 	        LOG.log(Level.SEVERE, e.getMessage(), e);
