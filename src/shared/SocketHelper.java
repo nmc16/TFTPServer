@@ -101,11 +101,14 @@ public class SocketHelper {
             	result.setSuccess(true);
                 result.setPacket(packet);
                 return result;
-            } else if (Arrays.equals(opCode, OpCodes.DATA_CODE) && block != DataHelper.getBlockNumber(packet)) {
+            } else if (Arrays.equals(opCode, OpCodes.DATA_CODE) && block <= DataHelper.getBlockNumber(packet)) {
             	LOG.warning("Received duplicate DATA packet");
             	result.setSuccess(true);
             	result.setDuplicateData(true);
                 result.setPacket(packet);
+                return result;
+            } else if (Arrays.equals(opCode, OpCodes.DATA_CODE) && block + 1 > DataHelper.getBlockNumber(packet)) {
+                LOG.warning("Received invalid DATA packet, ignoring...");
                 return result;
             }
 

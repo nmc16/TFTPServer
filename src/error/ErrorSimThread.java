@@ -25,7 +25,7 @@ import shared.OpCodes;
 public class ErrorSimThread implements Runnable {
     private static final String ACK = "ack";
     private static final String DATA = "data";
-    private static final int delay = 2000;
+    private int delay = 1000;
     private final Scanner reader;
     private final Logger LOG;
     private DatagramSocket sendReceiveSocket;
@@ -121,35 +121,35 @@ public class ErrorSimThread implements Runnable {
             newMsg[0] = bytes[0];
             newMsg[1] = bytes[1];
 
-        } else if(mode.equals("02")){
+        } else if(mode.equals("02") && !errorSent){
         	// Use a socket with a different port
-        	if (!errorSent) {
-        		errorSent = true;
-        		errSocket = true;
-        	}
+        	errorSent = true;
+        	errSocket = true;
 
-        } else if(mode.equals("03")){
+        } else if(mode.equals("03") && !errorSent){
         	// Use socket with different InetAddress
-        	if (!errorSent) {
-        		errorSent = true;
-        		errSocket = true;
-        	}
+        	errorSent = true;
+        	errSocket = true;
 
         } else if(mode.equals("04")){
         	// Edit the last bit of the mode to make it invalid
             newMsg = editMode(newMsg, argument);
             return new DatagramPacket(newMsg,newMsg.length, received.getAddress(), port);
 
-        } else if(mode.equals("05")){ //&& Integer.valueOf(args[1])>0){
+        } else if(mode.equals("05") && !errorSent){ //&& Integer.valueOf(args[1])>0){
 	        // Delay the packet
+            errorSent = true;
+            delay = Integer.valueOf(argument);
         	delayPacket = true;
 
-        }else if(mode.equals("06")){
+        }else if(mode.equals("06") && !errorSent){
         	// Duplicate the packet
+            errorSent = true;
         	duplicate = true;
 
-        } else if(mode.equals("07")){
+        } else if(mode.equals("07") && !errorSent){
         	// Lose the packet
+            errorSent = true;
         	lost = true;
         	
         } else if (mode.equals("08")) {
@@ -240,7 +240,9 @@ public class ErrorSimThread implements Runnable {
 
         // All commands must have length two except the normal operation mode and the edited OP code
         if (args.length != 3 && !(args.length == 1 && Integer.valueOf(args[0]) == 0) &&
-                                !(args.length == 4 && (Integer.valueOf(args[0]) == 1 || Integer.valueOf(args[0]) == 8 || Integer.valueOf(args[0]) == 9))) {
+                                !(args.length == 2 && Integer.valueOf(args[0]) == 4) &&
+                                !(args.length == 4 && (Integer.valueOf(args[0]) == 1 || Integer.valueOf(args[0]) == 8 ||
+                                                       Integer.valueOf(args[0]) == 9 || Integer.valueOf(args[0]) == 5))) {
  	  		return false;
  	  	}
 
@@ -262,14 +264,17 @@ public class ErrorSimThread implements Runnable {
         // Check that the argument is valid
         if ((Integer.valueOf(args[0]) == 1 || Integer.valueOf(args[0]) == 9) && (argument.length() != 2 || args.length != 4)) {
             return false;
-        } else if (Integer.valueOf(args[0]) == 8 && args.length != 4) {
+        } else if ((Integer.valueOf(args[0]) == 8 || Integer.valueOf(args[0]) == 5) && args.length != 4) {
         	return false;
+        } else if (Integer.valueOf(args[0]) == 4 && args.length != 2) {
+            return false;
         }
 
         // Set the mode to the first packet if the request is to be edited
         if (Integer.valueOf(args[0]) == 4) {
             blockNum = -1;
-        } else if (Integer.valueOf(args[0]) == 1 || Integer.valueOf(args[0]) == 8 || Integer.valueOf(args[0]) == 9) {
+            return true;
+        } else if (Integer.valueOf(args[0]) == 1 || Integer.valueOf(args[0]) == 8 || Integer.valueOf(args[0]) == 9 || Integer.valueOf(args[0]) == 5) {
             // We need to store the last argument instead for edited OP Code
             packetType = args[2];
             blockNum = Integer.valueOf(args[3]);
@@ -347,7 +352,7 @@ public class ErrorSimThread implements Runnable {
             sendUsingSocket(receivePacket);
             duplicate = false;
 	    } else if(delayPacket){
-            LOG.info("This packet will be delayed by 2 seconds...");
+            LOG.info("This packet will be delayed by " + delay + " milliseconds...");
             delayPacket(receivePacket);
 	    } else{
 	    	LOG.info("Sending packet...");
