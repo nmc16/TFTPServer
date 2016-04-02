@@ -46,7 +46,6 @@ public class FileHelper {
             return true;
         } catch (AccessControlException e) {
             // If thrown the file doesn't have access
-            e.printStackTrace();
             return false;
         }
     }

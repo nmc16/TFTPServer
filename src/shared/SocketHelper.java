@@ -156,7 +156,7 @@ public class SocketHelper {
 
         // Log the error code that has occurred
         System.out.println();
-        LOG.severe("Error code " + errCode[0] + errCode[1] + " has occurred." + (cause instanceof AddressException ? "" : "Closing the current request...") +
+        LOG.severe("Error code " + errCode[0] + errCode[1] + " has occurred. " + (cause instanceof AddressException ? "" : "Closing the current request...") +
                    "\n\tCause of error: " + cause.getMessage());
 
         // Create the packet and send it using the socket

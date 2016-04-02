@@ -179,6 +179,7 @@ public class ServerResponse implements Runnable {
 		    }
 
 		    PacketResult result;
+            timeOutCount = 0;
 	    	while(true){
                 result = socketHelper.receiveWithTimeout(timeOutCount, responseData, address, port, currBlock);
                 if (!result.isDuplicatedData() && result.isSuccess()) {

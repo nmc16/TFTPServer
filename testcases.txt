@@ -2,47 +2,62 @@ Test Cases (Updated for Iteration 5):
 =====================================
 1) Normal Operation: i) write - working
                      ii) read - working
+                     iii) write using errorsim - working
+                     iv) read using errorsim - working
+                     v) write 512 byte file - working
+                     vi) read 512 byte file - working
+                     vii) write 512 byte file using errorsim - working
+                     viii) read 512 byte file using errorsim - working
+                     ix) write large file - NOT WORKING - keeps timing out
+                     x) read large file - Sometimes works, sometimes doesnt, might have something to do with wireless connection and timeouts, maybe timeout should be larger?
+                     xi) write large file using errorsim - test later, maybe increase timeout
+                     xii) read large file using errorsim - test later, maybe increase timeout
 
-2) Edited OP Code: i) Write request packet to server (even packet #) - working
-                   ii) write request packet to client (odd packet #) - working
-                   iii) read request packet to server (even packet #) - working
-                   iv) read request packet to client (odd packet #) - working
+2) Edited OP Code: i) Write request ack packet - working
+                   ii) write request data packet - working
+                   iii) read request ack packet - working
+                   iv) read request data packet - working
 
-3) Invalid TID: i) Write request packet to server - working
-                ii) write request packet to client - working
-                iii) read request packet to server - working
-                iv) read request packet to client - working
+3) Invalid TID: i) Write request ack packet - working
+                ii) write request data packet - working
+                iii) read request ack packet - working
+                iv) read request data packet - working
 
-4) Invalid Address: Should be same as above
+4) Invalid Address: i) Write request ack packet - Have to test changing address of sending socket, not sure how that will work
+                    ii) write request data packet -
+                    iii) read request ack packet -
+                    iv) read request data packet -
 
-5) Mode change: i) Read request - working
+5) Mode change: i) Read request - Working
                 ii) write request - working
 
-6) Packet delayed: i) Write request packet to server - kind of working (transfer is but both client and server are receiving duplicates)
-                   ii) write request packet to client - working same problem as above
-                   iii) read request packet to server - working same problem i think
-                   iv) read request packet to client - working same problem i think
+6) Packet delayed: i) Write request ack packet - Working half the time, the other half it works but theres a lot of duplicates caused by timeouts
+                   ii) Write request data packet - Working
+                   iii) read request ack packet - working
+                   iv) read request data packet - working
 
-7) Duplicate Packet: i) Write request packet to server - working
-                     ii) write request packet to client - working
-                     iii) read request packet to server - working
-                     iv) read request packet to client - working
+7) Duplicate Packet: i) Write request packet to server -
+                     ii) write request packet to client -
+                     iii) read request packet to server -
+                     iv) read request packet to client -
 
-8) Lost Packet: i) Write request packet to server - NOT WORKING (tested with block 6) basically client waits while packets are being resent, probably something to do with block numbers
-                ii) write request packet to client - working
-                iii) read request packet to server - working (tested with even packet #)
-                iv) read request packet to client - NOT WORKING (tested with block 7) same thing as above?
+8) Lost Packet: i) Write request packet to server - Working
+                ii) write request packet to client - Working
+                iii) read request packet to server - Working
+                iv) read request packet to client - Working
 
-9) Invalid inputs on Error Sim Thread - working 
+9) Invalid inputs on Error Sim Thread - working
 
-10) File Already Exists: i) Client - working
-                         ii) Server - working
+10) File Already Exists: i) Client - Working
+                         ii) Server - Working
 
-11) Protected File: i) Client - working
-                    ii) Server - working
+11) Protected File: i) Client - Working, but has to send to server before the check is made
+                    ii) Server - Working
 
-12) File does not exist: i) Client - working
-                         ii) Server - working
+12) File does not exist: i) Client - Working, but has to send to server before the check is made
+                         ii) Server - Working
 
-13) Disk Full: i) Client - working 
-               ii) Server - working
+13) Disk Full: i) Client - Working
+               ii) Server - Working
+
+14) Invalid requests: i) Invalid mode - Working

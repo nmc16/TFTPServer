@@ -199,7 +199,8 @@ public class Client {
         System.out.println("                                             project is being run under directory \"client_files\".");
         System.out.println("    write [filename] [file location] [mode] - Writes file at location to filename on server.");
         System.out.println("    verbose [true|false] - Changes server display mode to verbose or silent mode.");
-        System.out.println("    mode [test|normal] - Test mode sends packets to Error Sim, normal mode sends the packets to Server.");
+        System.out.println("    mode [test IP-Address |normal] - Test mode sends packets to Error Sim, normal mode sends the packets to Server.");
+        System.out.println("    connect IP-Address - Changes the connection of the server to the IP-Address.");
         System.out.println("    help - Prints options screen.");
         System.out.println("    quit - Quits the client program.");
     }
