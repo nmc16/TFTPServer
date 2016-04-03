@@ -20,7 +20,37 @@ Import the project into eclipse, this can be done by:
 	2) When the New Project Wizard appears uncheck the "Use default location" checkbox
 	3) Click browse and select the project folder
 	4) Click finish and the project is now imported into eclipse.
-	
+
+Steps for running on different PCs:
+===================================
+    Note: The error sim can reside on any computer, but most testing was done with the error sim on the same
+          pc as the client, or on the same pc as the server.
+
+    1) Run Server.java on one of the PCs. Note the address that the program displays at startup as the broadcast address.
+       This will be the address you enter into the client and error sim.
+
+       Note: You can also find the address by opening cmd and entering "ipconfig /all" and finding the Ethernet IPv4 address.
+
+    2) Run ErrorSim.java. Enter the address from the server above when it prompts for the server address. Note the address the
+       ErrorSim prints, this will be entered in the client.
+
+    3) Run Client.java. Enter the server address when it prompts for it.
+       Note: If the address of the server has changed, or connecting to a different address you can enter the command:
+                connect IP_ADDRESS
+             to connect to the new server address.
+             
+    4) Select the mode you want to run in. The default mode the client runs in is normal mode (client directly to server).
+       If this is the mode you want, you can run commands right away. If you want to go to test mode (client to error sim)
+       then enter the command :
+            mode test IP-Address-Of-ErrorSim
+
+       If you want to go back to normal mode enter the command:
+            mode normal
+
+       Both should display the updated mode the client is running in.
+
+    5) Use steps 5-8 below (Steps for running) to run the commands.
+
 Steps for running:
 ==================
     1) Run ErrorSim.java
@@ -29,9 +59,9 @@ Steps for running:
     4) Follow on screen format and menus in the client to send requests to the server
 	5) By default the output is not shown. To show the output from the Server or Client you can type the command:
 			-> "verbose true"
-    5) A write request can be performed using the command -> write C:/file/location/filename_on_server.txt C:/file/location/on/client.txt octet|netascii
-    6) A read equest can be performed using the command -> read C:/file/location/filename_on_server.txt C:/file/location/on/client.txt octet|netascii
-	7) The ErrorSim will prompt you for an error to simulate. To select one of the options you select the code from the menu and enter the block number
+    6) A write request can be performed using the command -> write C:/file/location/filename_on_server.txt C:/file/location/on/client.txt octet|netascii
+    7) A read equest can be performed using the command -> read C:/file/location/filename_on_server.txt C:/file/location/on/client.txt octet|netascii
+	8) The ErrorSim will prompt you for an error to simulate. To select one of the options you select the code from the menu and enter the block number
 	   that the error should be performed on afterwards. If you want the request to complete without error you can use: "00 0" at the prompt.
 			-> example: "08 7" (This will lose packet 7)
 	
@@ -138,10 +168,4 @@ Breakdown:
 	Nic: Testing, Coding
 	Kevin: Timing Diagrams, Testing
 
-
-Notes:
-======
-4) If the last packet is lost it wont be resent from the client
-5) Remnants of file transfers that did not complete are left over, probably should consider
-   adding delete file method that will remove the broken files
     	
