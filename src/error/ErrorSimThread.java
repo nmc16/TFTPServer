@@ -158,8 +158,8 @@ public class ErrorSimThread implements Runnable {
         	return new DatagramPacket(bytes, bytes.length, received.getAddress(), port);
         } else if (mode.equals("09") && !errorSent) {
         	byte[] bytes = DataHelper.getNewBlock(Integer.valueOf(argument));
-            newMsg[2] = bytes[0];
-            newMsg[3] = bytes[1];
+            newMsg[0] = bytes[0];
+            newMsg[1] = bytes[1];
             errorSent = true;
         }
 
@@ -188,7 +188,7 @@ public class ErrorSimThread implements Runnable {
 	    System.out.print("\"02 [ack|data] [block number]\": Change to an invalid port number\n");
 	    System.out.print("\"03 [ack|data] [block number]\": Change to a different Address\n");
 	    System.out.print("\"04 [mode]\": Change the mode\n");
-	    System.out.print("\"05 [ack|data] [block number]\": Delay Packet\n");
+	    System.out.print("\"05 [delay length] [ack|data] [block number]\": Delay Packet\n");
 	    System.out.print("\"06 [ack|data] [block number]\": Duplicate Packet\n");
 	    System.out.print("\"07 [ack|data] [block number]\": Lose Packet\n");
 	    System.out.print("\"08 [new length] [ack|data] [block number]\": Change packet length\n");

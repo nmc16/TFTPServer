@@ -216,7 +216,7 @@ public class ServerResponse implements Runnable {
 	    	DataHelper.printPacketData(data, "Server (" + socket.getLocalPort() + "): Received Packet", ServerSettings.verbose, true);
 	    	
 	    	byte[] b = Arrays.copyOfRange(datamin, 4, datamin.length);
-	    	if (datamin.length < 512) {
+	    	if (b.length < 512) {
 	    		flag = true;
 	    	}
 	    	
