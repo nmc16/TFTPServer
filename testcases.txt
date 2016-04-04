@@ -31,7 +31,7 @@ Test Cases (Updated for Iteration 5):
 5) Mode change: i) Read request - Working
                 ii) write request - working
 
-6) Packet delayed: i) Write request ack packet - Working half the time, the other half it works but theres a lot of duplicates caused by timeouts
+6) Packet delayed: i) Write request ack packet - working
                    ii) Write request data packet - Working
                    iii) read request ack packet - working
                    iv) read request data packet - working

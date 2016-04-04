@@ -158,8 +158,8 @@ public class ErrorSimThread implements Runnable {
         	return new DatagramPacket(bytes, bytes.length, received.getAddress(), port);
         } else if (mode.equals("09") && !errorSent) {
         	byte[] bytes = DataHelper.getNewBlock(Integer.valueOf(argument));
-            newMsg[0] = bytes[0];
-            newMsg[1] = bytes[1];
+            newMsg[2] = bytes[0];
+            newMsg[3] = bytes[1];
             errorSent = true;
         }
 
