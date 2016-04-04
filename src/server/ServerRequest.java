@@ -5,6 +5,7 @@ import shared.DataHelper;
 import shared.ErrorCodes;
 import shared.FileHelper;
 import shared.InetHelper;
+import shared.OpCodes;
 import shared.SocketHelper;
 
 import java.io.IOException;
@@ -14,6 +15,7 @@ import java.net.InetAddress;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,6 +33,7 @@ public class ServerRequest implements Runnable {
     private DatagramSocket receiveSocket;
     private ArrayList<Thread> openRequests;
     private ArrayList<String> filesInUse;
+    private HashMap<Thread, String> map; 
 
     public ServerRequest() {
     	// Set up the Logger
@@ -40,6 +43,7 @@ public class ServerRequest implements Runnable {
         // Set up the lists for tracking requests
         openRequests = new ArrayList<Thread>();
         filesInUse = new ArrayList<String>();
+        map = new HashMap<Thread, String>();
 
         try {
         	// Get the site local address
@@ -146,8 +150,12 @@ public class ServerRequest implements Runnable {
         for (Thread t : copy) {
             if (!t.isAlive()) {
                 index = copy.indexOf(t);
+                if(map.containsKey(openRequests.get(index))){
+                	filesInUse.remove(map.get(openRequests.get(index)));
+                	map.remove(openRequests.get(index));
+                }
                 openRequests.remove(index);
-                filesInUse.remove(index);
+                
             }
         }
     }
@@ -182,7 +190,12 @@ public class ServerRequest implements Runnable {
 
                         // Add thread and file to active lists
 	                    openRequests.add(clientThread);
-	                    filesInUse.add(FileHelper.getFileFromPacket(receivePacket).getName());
+	                    
+	                    
+	                    if (Arrays.equals(Arrays.copyOfRange(receivePacket.getData(), 0, 2), OpCodes.WRITE_CODE)) {
+	                    	filesInUse.add(FileHelper.getFileFromPacket(receivePacket).getName());
+	                    	map.put(clientThread, FileHelper.getFileFromPacket(receivePacket).getName());
+	                    }
 
 	                } else{
 	                    // Terminate the request
